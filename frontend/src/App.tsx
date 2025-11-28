@@ -21,7 +21,7 @@ function AppContent() {
       {showNavbar && <Navbar />}
       <div className={showNavbar ? "container mx-auto px-4 py-8" : ""}>
         <Routes>
-          <Route path="/" element={<ManagerDashboardPage />} />
+          <Route path="/" element={<Navigate to="/new-session" replace />} />
           <Route path="/new-session" element={<NewDqaSessionPage />} />
           <Route path="/session/:id" element={<SessionDetailPage />} />
           <Route path="/login" element={<LoginPage />} />
