@@ -30,6 +30,7 @@ from crud import (
     get_sessions,
     get_session,
     create_session,
+    delete_session,
     get_dashboard_stats
 )
 
@@ -211,6 +212,14 @@ def get_session_detail(session_id: int, db: Session = Depends(get_db)):
     if not session:
         raise HTTPException(status_code=404, detail="Session not found")
     return session
+
+@app.delete("/sessions/{session_id}")
+def delete_dqa_session(session_id: int, db: Session = Depends(get_db)):
+    """Delete a DQA session"""
+    result = delete_session(db, session_id)
+    if not result:
+        raise HTTPException(status_code=404, detail="Session not found")
+    return {"message": "Session deleted successfully"}
 
 @app.post("/sessions", response_model=DqaSessionResponse)
 def create_dqa_session(session_data: DqaSessionCreate, db: Session = Depends(get_db)):

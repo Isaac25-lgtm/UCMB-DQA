@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { fetchSessions, downloadExport, uploadCsv, fetchDashboardStats, fetchTeams } from '../api'
+import { fetchSessions, downloadExport, uploadCsv, fetchDashboardStats, fetchTeams, deleteSession } from '../api'
 import type { DqaSessionSummary, DashboardStats } from '../api'
 import type { TeamsResponse } from '../types'
 import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
@@ -84,6 +84,23 @@ export default function ManagerDashboardPage() {
       setError(err instanceof Error ? err.message : 'Failed to upload CSV')
     } finally {
       setUploading(false)
+    }
+  }
+
+  async function handleDelete(sessionId: number, e: React.MouseEvent) {
+    e.stopPropagation() // Prevent row click navigation
+    
+    if (!window.confirm('Are you sure you want to delete this session? This action cannot be undone.')) {
+      return
+    }
+
+    try {
+      setError(null)
+      await deleteSession(sessionId)
+      await loadSessions()
+      await loadStats()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to delete session')
     }
   }
 
@@ -282,12 +299,15 @@ export default function ManagerDashboardPage() {
                 <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
                   # Amber
                 </th>
+                <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Actions
+                </th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {sessions.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="px-4 py-8 text-center text-gray-500">
+                  <td colSpan={9} className="px-4 py-8 text-center text-gray-500">
                     No sessions found. Create a new session to get started.
                   </td>
                 </tr>
@@ -297,32 +317,64 @@ export default function ManagerDashboardPage() {
                   return (
                     <tr
                       key={session.id}
-                      onClick={() => navigate(`/session/${session.id}`)}
-                      className="hover:bg-gray-50 cursor-pointer"
+                      className="hover:bg-gray-50"
                     >
-                      <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
+                      <td 
+                        className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 cursor-pointer"
+                        onClick={() => navigate(`/session/${session.id}`)}
+                      >
                         {session.district}
                       </td>
-                      <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
+                      <td 
+                        className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 cursor-pointer"
+                        onClick={() => navigate(`/session/${session.id}`)}
+                      >
                         {session.facility_name}
                       </td>
-                      <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-900">
+                      <td 
+                        className="px-4 py-3 whitespace-nowrap text-sm text-gray-900 cursor-pointer"
+                        onClick={() => navigate(`/session/${session.id}`)}
+                      >
                         {session.period}
                       </td>
-                      <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                      <td 
+                        className="px-4 py-3 whitespace-nowrap text-sm text-gray-500 cursor-pointer"
+                        onClick={() => navigate(`/session/${session.id}`)}
+                      >
                         {session.team || '-'}
                       </td>
-                      <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                      <td 
+                        className="px-4 py-3 whitespace-nowrap text-sm text-gray-500 cursor-pointer"
+                        onClick={() => navigate(`/session/${session.id}`)}
+                      >
                         {createdDate}
                       </td>
-                      <td className="px-4 py-3 whitespace-nowrap text-sm text-center text-gray-900">
+                      <td 
+                        className="px-4 py-3 whitespace-nowrap text-sm text-center text-gray-900 cursor-pointer"
+                        onClick={() => navigate(`/session/${session.id}`)}
+                      >
                         {session.line_count}
                       </td>
-                      <td className="px-4 py-3 whitespace-nowrap text-sm text-center text-red-600 font-medium">
+                      <td 
+                        className="px-4 py-3 whitespace-nowrap text-sm text-center text-red-600 font-medium cursor-pointer"
+                        onClick={() => navigate(`/session/${session.id}`)}
+                      >
                         {session.red_count}
                       </td>
-                      <td className="px-4 py-3 whitespace-nowrap text-sm text-center text-yellow-600 font-medium">
+                      <td 
+                        className="px-4 py-3 whitespace-nowrap text-sm text-center text-yellow-600 font-medium cursor-pointer"
+                        onClick={() => navigate(`/session/${session.id}`)}
+                      >
                         {session.amber_count}
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap text-sm text-center">
+                        <button
+                          onClick={(e) => handleDelete(session.id, e)}
+                          className="px-3 py-1 bg-red-600 text-white rounded hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500"
+                          title="Delete session"
+                        >
+                          Delete
+                        </button>
                       </td>
                     </tr>
                   )

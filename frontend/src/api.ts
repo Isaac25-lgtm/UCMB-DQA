@@ -102,3 +102,13 @@ export async function fetchDashboardStats(): Promise<DashboardStats> {
   return response.json()
 }
 
+export async function deleteSession(sessionId: number): Promise<void> {
+  const response = await fetch(`${API_BASE}/sessions/${sessionId}`, {
+    method: 'DELETE',
+  })
+  if (!response.ok) {
+    const error = await response.json()
+    throw new Error(error.detail || 'Failed to delete session')
+  }
+}
+

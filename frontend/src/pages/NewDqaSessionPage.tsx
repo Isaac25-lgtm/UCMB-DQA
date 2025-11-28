@@ -79,6 +79,49 @@ export default function NewDqaSessionPage() {
     }))
   }
 
+  const handleDownload = () => {
+    if (!selectedFacilityId || !selectedTeam) {
+      setError('Please select a facility and team before downloading')
+      return
+    }
+
+    const selectedFacility = facilities.find(f => f.id === selectedFacilityId)
+    if (!selectedFacility) return
+
+    // Prepare CSV data
+    const csvRows: string[] = []
+    
+    // Header
+    csvRows.push('facility,district,period,indicator_code,recount_register,figure_105,figure_dhis2,team')
+    
+    // Data rows
+    indicators.forEach(indicator => {
+      const line = lines[indicator.id] || {}
+      csvRows.push([
+        selectedFacility.name,
+        selectedFacility.district,
+        period,
+        indicator.code,
+        line.recount_register ?? '',
+        line.figure_105 ?? '',
+        line.figure_dhis2 ?? '',
+        selectedTeam
+      ].join(','))
+    })
+    
+    // Create and download
+    const csvContent = csvRows.join('\n')
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const url = window.URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `dqa_session_${selectedFacility.name.replace(/\s+/g, '_')}_${period.replace(/\s+/g, '_')}.csv`
+    document.body.appendChild(a)
+    a.click()
+    window.URL.revokeObjectURL(url)
+    document.body.removeChild(a)
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!selectedFacilityId) {
@@ -314,7 +357,15 @@ export default function NewDqaSessionPage() {
           </div>
         )}
 
-        <div className="flex justify-end">
+        <div className="flex justify-end gap-3">
+          <button
+            type="button"
+            onClick={handleDownload}
+            disabled={loading || !selectedFacilityId || !selectedTeam}
+            className="px-6 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 disabled:opacity-50"
+          >
+            Download as CSV
+          </button>
           <button
             type="submit"
             disabled={loading}

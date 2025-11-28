@@ -63,6 +63,15 @@ def create_session(db: Session, session_data: dict, lines_data: list):
     db.refresh(session)
     return session
 
+def delete_session(db: Session, session_id: int):
+    """Delete a session and all its lines"""
+    session = db.query(DqaSession).filter(DqaSession.id == session_id).first()
+    if not session:
+        return None
+    db.delete(session)
+    db.commit()
+    return True
+
 def get_dashboard_stats(db: Session):
     """Get statistics for dashboard graphs"""
     total_facilities = db.query(Facility).count()
