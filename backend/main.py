@@ -247,7 +247,12 @@ def list_facilities(db: Session = Depends(get_db)):
 
 @app.get("/indicators", response_model=List[IndicatorSchema])
 def list_indicators(db: Session = Depends(get_db)):
-    return get_indicators(db)
+    indicators = get_indicators(db)
+    # Debug logging
+    print(f"[DEBUG] /indicators endpoint called, returning {len(indicators)} indicators")
+    if len(indicators) == 0:
+        print("[WARNING] No indicators found in database!")
+    return indicators
 
 @app.get("/teams")
 def get_teams():

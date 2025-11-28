@@ -32,16 +32,29 @@ export async function fetchFacilities(): Promise<Facility[]> {
 
 export async function fetchIndicators(): Promise<Indicator[]> {
   try {
-    const response = await fetch(`${API_BASE}/indicators`)
+    console.log(`[API] Fetching indicators from ${API_BASE}/indicators`)
+    const response = await fetch(`${API_BASE}/indicators`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    })
+    
+    console.log(`[API] Response status: ${response.status} ${response.statusText}`)
+    
     if (!response.ok) {
       const errorText = await response.text()
+      console.error(`[API] Error response:`, errorText)
       throw new Error(`Failed to fetch indicators: ${response.status} ${response.statusText}. ${errorText}`)
     }
+    
     const data = await response.json()
+    console.log(`[API] Received ${data.length} indicators`)
     return data
   } catch (err) {
-    if (err instanceof TypeError && err.message.includes('fetch')) {
-      throw new Error(`Cannot connect to backend at ${API_BASE}. Please ensure the backend server is running.`)
+    console.error(`[API] Fetch error:`, err)
+    if (err instanceof TypeError && (err.message.includes('fetch') || err.message.includes('Failed to fetch'))) {
+      throw new Error(`Cannot connect to backend at ${API_BASE}. Please ensure the backend server is running on port 8000.`)
     }
     throw err
   }
