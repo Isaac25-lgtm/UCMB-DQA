@@ -8,23 +8,29 @@ function App() {
   return (
     <BrowserRouter>
       <div className="min-h-screen bg-gray-50">
-        <Navbar />
-        <div className="container mx-auto px-4 py-8">
-          <Routes>
-            <Route path="/" element={<Navigate to="/new-session" replace />} />
-            <Route path="/login" element={<LoginPage />} />
-            <Route path="/new-session" element={<NewDqaSessionPage />} />
-            <Route path="/session/:id" element={<SessionDetailPage />} />
-            <Route 
-              path="/dashboard" 
-              element={
-                <ProtectedRoute>
-                  <ManagerDashboardPage />
-                </ProtectedRoute>
-              } 
-            />
-          </Routes>
-        </div>
+        <Routes>
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="*" element={
+            <>
+              <Navbar />
+              <div className="container mx-auto px-4 py-8">
+                <Routes>
+                  <Route path="/" element={<Navigate to="/new-session" replace />} />
+                  <Route path="/new-session" element={<NewDqaSessionPage />} />
+                  <Route path="/session/:id" element={<SessionDetailPage />} />
+                  <Route 
+                    path="/dashboard" 
+                    element={
+                      <ProtectedRoute>
+                        <ManagerDashboardPage />
+                      </ProtectedRoute>
+                    } 
+                  />
+                </Routes>
+              </div>
+            </>
+          } />
+        </Routes>
       </div>
     </BrowserRouter>
   )
