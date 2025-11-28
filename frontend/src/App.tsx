@@ -58,18 +58,16 @@ function Navbar() {
             <Link to="/new-session" className="hover:text-blue-200 transition">
               New DQA Session
             </Link>
+            <Link to="/dashboard" className="hover:text-blue-200 transition">
+              Manager Dashboard
+            </Link>
             {isAuthenticated && (
-              <>
-                <Link to="/dashboard" className="hover:text-blue-200 transition">
-                  Manager Dashboard
-                </Link>
-                <button
-                  onClick={handleLogout}
-                  className="hover:text-blue-200 transition"
-                >
-                  Logout
-                </button>
-              </>
+              <button
+                onClick={handleLogout}
+                className="hover:text-blue-200 transition"
+              >
+                Logout
+              </button>
             )}
           </div>
         </div>
