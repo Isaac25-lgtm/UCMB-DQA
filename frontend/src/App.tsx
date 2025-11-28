@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Link, Navigate } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Link, Navigate, useLocation } from 'react-router-dom'
 import NewDqaSessionPage from './pages/NewDqaSessionPage'
 import SessionDetailPage from './pages/SessionDetailPage'
 import ManagerDashboardPage from './pages/ManagerDashboardPage'
@@ -7,32 +7,35 @@ import LoginPage from './pages/LoginPage'
 function App() {
   return (
     <BrowserRouter>
-      <div className="min-h-screen bg-gray-50">
+      <AppContent />
+    </BrowserRouter>
+  )
+}
+
+function AppContent() {
+  const location = useLocation()
+  const showNavbar = location.pathname !== '/login'
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      {showNavbar && <Navbar />}
+      <div className={showNavbar ? "container mx-auto px-4 py-8" : ""}>
         <Routes>
+          <Route path="/" element={<Navigate to="/new-session" replace />} />
           <Route path="/login" element={<LoginPage />} />
-          <Route path="/" element={
-            <>
-              <Navbar />
-              <div className="container mx-auto px-4 py-8">
-                <Routes>
-                  <Route index element={<Navigate to="/new-session" replace />} />
-                  <Route path="new-session" element={<NewDqaSessionPage />} />
-                  <Route path="session/:id" element={<SessionDetailPage />} />
-                  <Route 
-                    path="dashboard" 
-                    element={
-                      <ProtectedRoute>
-                        <ManagerDashboardPage />
-                      </ProtectedRoute>
-                    } 
-                  />
-                </Routes>
-              </div>
-            </>
-          } />
+          <Route path="/new-session" element={<NewDqaSessionPage />} />
+          <Route path="/session/:id" element={<SessionDetailPage />} />
+          <Route 
+            path="/dashboard" 
+            element={
+              <ProtectedRoute>
+                <ManagerDashboardPage />
+              </ProtectedRoute>
+            } 
+          />
         </Routes>
       </div>
-    </BrowserRouter>
+    </div>
   )
 }
 
