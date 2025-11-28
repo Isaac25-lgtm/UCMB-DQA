@@ -1,0 +1,83 @@
+# DQA Tool for MNH (Maternal and Newborn Health)
+
+A full-stack web application for Data Quality Assurance assessments.
+
+## Tech Stack
+
+- **Backend**: FastAPI + SQLAlchemy + SQLite
+- **Frontend**: React + TypeScript + Vite + TailwindCSS
+
+## Setup Instructions
+
+### Backend Setup
+
+1. Navigate to the backend directory:
+```bash
+cd backend
+```
+
+2. Create a virtual environment (recommended):
+```bash
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
+```
+
+3. Install dependencies:
+```bash
+pip install -r requirements.txt
+```
+
+4. Run the server:
+```bash
+uvicorn main:app --reload
+```
+
+The API will be available at `http://localhost:8000`
+
+### Frontend Setup
+
+1. Navigate to the frontend directory:
+```bash
+cd frontend
+```
+
+2. Install dependencies:
+```bash
+npm install
+```
+
+3. Run the development server:
+```bash
+npm run dev
+```
+
+The frontend will be available at `http://localhost:5173`
+
+## Features
+
+- **Online Assessment Form**: Create new DQA sessions with facility and indicator data
+- **Manager Dashboard**: View all sessions with summary statistics
+- **Excel Export**: Download all data as Excel with color-coded percentage deviations
+- **CSV Upload**: Upload offline-filled CSV data (only requires: facility, district, period, indicator_code, recount_register, figure_105, figure_dhis2)
+- **Automatic Calculations**: Deviations are automatically calculated from uploaded data
+- **Deviation Analysis**: Automatic calculation and color-coding of deviations:
+  - Green: ≤ 5%
+  - Amber: 5-10%
+  - Red: > 10%
+
+## Database
+
+The SQLite database (`dqa.db`) is automatically created on first run. Seed data includes:
+- 8 facilities across 4 districts (Lamwo, Nwoya, Gulu, Pader)
+- 15 MNH indicators (AN01, AN02, AN11, PN01, MA04, etc.)
+
+## API Endpoints
+
+- `GET /facilities` - List all facilities
+- `GET /indicators` - List all indicators
+- `GET /sessions` - List all sessions with summaries
+- `GET /sessions/{id}` - Get session details
+- `POST /sessions` - Create a new session
+- `GET /export` - Download all data as CSV
+- `POST /sessions/upload-csv` - Upload CSV file
+
