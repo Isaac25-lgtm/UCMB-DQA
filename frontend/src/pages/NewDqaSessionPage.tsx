@@ -40,17 +40,39 @@ export default function NewDqaSessionPage() {
     figure_dhis2?: number | null
   }>>({})
   const [loading, setLoading] = useState(false)
+  const [dataLoading, setDataLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     async function loadData() {
       try {
+        setDataLoading(true)
         setError(null)
-        const [facilitiesData, indicatorsData, teamsData] = await Promise.all([
-          fetchFacilities(),
-          fetchIndicators(),
-          fetchTeams(),
-        ])
+        
+        // Load data with individual error handling
+        let facilitiesData: Facility[] = []
+        let indicatorsData: Indicator[] = []
+        let teamsData: TeamsResponse = {}
+        
+        try {
+          facilitiesData = await fetchFacilities()
+        } catch (err) {
+          console.error('Failed to load facilities:', err)
+        }
+        
+        try {
+          indicatorsData = await fetchIndicators()
+        } catch (err) {
+          console.error('Failed to load indicators:', err)
+          throw new Error(`Cannot load indicators. ${err instanceof Error ? err.message : 'Please ensure the backend is running at http://localhost:8000'}`)
+        }
+        
+        try {
+          teamsData = await fetchTeams()
+        } catch (err) {
+          console.error('Failed to load teams:', err)
+        }
+        
         setFacilities(facilitiesData)
         setIndicators(indicatorsData)
         setTeams(teamsData)
@@ -61,10 +83,16 @@ export default function NewDqaSessionPage() {
           indicators: indicatorsData.length,
           teams: Object.keys(teamsData).length
         })
+        
+        if (indicatorsData.length === 0) {
+          setError('No indicators found in database. Please restart the backend server to seed data.')
+        }
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : 'Failed to load data'
-        setError(`Error: ${errorMessage}. Please ensure the backend is running at ${import.meta.env.VITE_API_BASE || 'http://localhost:8000'}`)
+        setError(errorMessage)
         console.error('Error loading data:', err)
+      } finally {
+        setDataLoading(false)
       }
     }
     loadData()
@@ -168,11 +196,18 @@ export default function NewDqaSessionPage() {
     }
   }
 
-  if (error && !facilities.length) {
+  if (error && !facilities.length && !indicators.length) {
     return (
       <div className="max-w-4xl mx-auto">
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
-          {error}
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+          <p className="font-bold">Connection Error</p>
+          <p>{error}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="mt-2 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
+          >
+            Retry
+          </button>
         </div>
       </div>
     )
@@ -299,10 +334,19 @@ export default function NewDqaSessionPage() {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {indicators.length === 0 ? (
+                {dataLoading ? (
                   <tr>
                     <td colSpan={9} className="px-4 py-8 text-center text-gray-500">
-                      No indicators found. Please check your connection and refresh the page.
+                      <div className="flex items-center justify-center">
+                        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mr-2"></div>
+                        Loading indicators...
+                      </div>
+                    </td>
+                  </tr>
+                ) : indicators.length === 0 ? (
+                  <tr>
+                    <td colSpan={9} className="px-4 py-8 text-center text-gray-500">
+                      {error || 'No indicators found. Please check your connection and refresh the page.'}
                     </td>
                   </tr>
                 ) : (
