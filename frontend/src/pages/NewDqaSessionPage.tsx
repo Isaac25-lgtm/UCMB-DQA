@@ -80,32 +80,31 @@ export default function NewDqaSessionPage() {
   }
 
   const handleDownload = () => {
-    if (!selectedFacilityId || !selectedTeam) {
-      setError('Please select a facility and team before downloading')
+    if (!selectedFacilityId) {
+      setError('Please select a facility before downloading')
       return
     }
 
     const selectedFacility = facilities.find(f => f.id === selectedFacilityId)
     if (!selectedFacility) return
 
-    // Prepare CSV data
+    // Prepare CSV data - empty template for offline filling
     const csvRows: string[] = []
     
-    // Header
+    // Header - correct order: facility, district, period, indicator_code, recount_register, figure_105, figure_dhis2, team
     csvRows.push('facility,district,period,indicator_code,recount_register,figure_105,figure_dhis2,team')
     
-    // Data rows
+    // Data rows - all data columns empty, team column empty
     indicators.forEach(indicator => {
-      const line = lines[indicator.id] || {}
       csvRows.push([
         selectedFacility.name,
         selectedFacility.district,
         period,
         indicator.code,
-        line.recount_register ?? '',
-        line.figure_105 ?? '',
-        line.figure_dhis2 ?? '',
-        selectedTeam
+        '', // recount_register - empty
+        '', // figure_105 - empty
+        '', // figure_dhis2 - empty
+        ''  // team - empty (manager will assign when uploading)
       ].join(','))
     })
     
@@ -361,10 +360,10 @@ export default function NewDqaSessionPage() {
           <button
             type="button"
             onClick={handleDownload}
-            disabled={loading || !selectedFacilityId || !selectedTeam}
+            disabled={loading || !selectedFacilityId}
             className="px-6 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 disabled:opacity-50"
           >
-            Download as CSV
+            Download Template CSV
           </button>
           <button
             type="submit"
