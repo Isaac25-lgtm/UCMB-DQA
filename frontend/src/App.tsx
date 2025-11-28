@@ -21,10 +21,10 @@ function AppContent() {
       {showNavbar && <Navbar />}
       <div className={showNavbar ? "container mx-auto px-4 py-8" : ""}>
         <Routes>
-          <Route path="/" element={<Navigate to="/new-session" replace />} />
-          <Route path="/login" element={<LoginPage />} />
+          <Route path="/" element={<ManagerDashboardPage />} />
           <Route path="/new-session" element={<NewDqaSessionPage />} />
           <Route path="/session/:id" element={<SessionDetailPage />} />
+          <Route path="/login" element={<LoginPage />} />
           <Route 
             path="/dashboard" 
             element={
@@ -39,14 +39,17 @@ function AppContent() {
   )
 }
 
-function Navbar() {
-  const isAuthenticated = !!localStorage.getItem('auth_token')
-
-  const handleLogout = () => {
-    localStorage.removeItem('auth_token')
-    window.location.href = '/login'
+function ProtectedRoute({ children }: { children: React.ReactElement }) {
+  const isAuthenticated = localStorage.getItem('manager_authenticated') === 'true'
+  
+  if (!isAuthenticated) {
+    return <Navigate to="/login" state={{ from: { pathname: '/dashboard' } }} replace />
   }
+  
+  return children
+}
 
+function Navbar() {
   return (
     <nav className="bg-blue-600 text-white shadow-lg">
       <div className="container mx-auto px-4">
@@ -61,24 +64,11 @@ function Navbar() {
             <Link to="/dashboard" className="hover:text-blue-200 transition">
               Manager Dashboard
             </Link>
-            {isAuthenticated && (
-              <button
-                onClick={handleLogout}
-                className="hover:text-blue-200 transition"
-              >
-                Logout
-              </button>
-            )}
           </div>
         </div>
       </div>
     </nav>
   )
-}
-
-function ProtectedRoute({ children }: { children: React.ReactElement }) {
-  const isAuthenticated = !!localStorage.getItem('auth_token')
-  return isAuthenticated ? children : <Navigate to="/login" replace />
 }
 
 export default App

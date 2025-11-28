@@ -1,79 +1,53 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-
-const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8000'
+import { useNavigate, useLocation } from 'react-router-dom'
 
 export default function LoginPage() {
   const navigate = useNavigate()
+  const location = useLocation()
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
     setLoading(true)
 
-    try {
-      // Add timeout to prevent hanging
-      const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), 10000) // 10 second timeout
-
-      const response = await fetch(`${API_BASE}/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password }),
-        signal: controller.signal,
-      })
-
-      clearTimeout(timeoutId)
-
-      if (!response.ok) {
-        const error = await response.json().catch(() => ({ detail: 'Login failed' }))
-        throw new Error(error.detail || 'Invalid credentials')
-      }
-
-      const data = await response.json()
-      localStorage.setItem('auth_token', data.access_token)
-      navigate('/dashboard')
-    } catch (err) {
-      if (err instanceof Error && err.name === 'AbortError') {
-        setError('Login request timed out. Please check your connection and try again.')
-      } else {
-        setError(err instanceof Error ? err.message : 'Login failed. Please check your connection.')
-      }
-      console.error('Login error:', err)
-    } finally {
+    // Check credentials
+    if (username === 'jendabalo22@gmail.com' && password === 'dataqualtyassessment') {
+      // Store authentication
+      localStorage.setItem('manager_authenticated', 'true')
+      
+      // Redirect to dashboard or intended page
+      const from = (location.state as any)?.from?.pathname || '/dashboard'
+      navigate(from, { replace: true })
+    } else {
+      setError('Invalid username or password')
       setLoading(false)
     }
   }
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-      <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-8">
-        <h1 className="text-3xl font-bold text-center mb-6 text-gray-900">
+      <div className="max-w-md w-full bg-white p-8 rounded-lg shadow-lg">
+        <h1 className="text-2xl font-bold text-center mb-6 text-gray-900">
           Manager Login
         </h1>
-        <h2 className="text-xl text-center mb-8 text-gray-600">
-          DQA Tool - MNH
-        </h2>
-        
-        <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Username
             </label>
             <input
-              type="email"
+              type="text"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               required
-              placeholder="Enter your email"
+              autoFocus
             />
           </div>
-
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Password
@@ -84,16 +58,13 @@ export default function LoginPage() {
               onChange={(e) => setPassword(e.target.value)}
               className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
               required
-              placeholder="Enter your password"
             />
           </div>
-
           {error && (
             <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
               {error}
             </div>
           )}
-
           <button
             type="submit"
             disabled={loading}
