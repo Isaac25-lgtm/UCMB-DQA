@@ -50,6 +50,13 @@ function ProtectedRoute({ children }: { children: React.ReactElement }) {
 }
 
 function Navbar() {
+  const isAuthenticated = localStorage.getItem('manager_authenticated') === 'true'
+
+  const handleLogout = () => {
+    localStorage.removeItem('manager_authenticated')
+    window.location.href = '/new-session'
+  }
+
   return (
     <nav className="bg-blue-600 text-white shadow-lg">
       <div className="container mx-auto px-4">
@@ -64,6 +71,14 @@ function Navbar() {
             <Link to="/dashboard" className="hover:text-blue-200 transition">
               Manager Dashboard
             </Link>
+            {isAuthenticated && (
+              <button
+                onClick={handleLogout}
+                className="hover:text-blue-200 transition"
+              >
+                Logout
+              </button>
+            )}
           </div>
         </div>
       </div>
