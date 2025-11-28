@@ -31,7 +31,7 @@ export default function NewDqaSessionPage() {
   const [selectedFacilityId, setSelectedFacilityId] = useState<number | null>(null)
   const [period] = useState(() => {
     const now = new Date()
-    return now.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
+    return now.toLocaleDateString('en-US', { year: 'numeric', month: 'long' })
   })
   const [selectedTeam, setSelectedTeam] = useState<string>('')
   const [lines, setLines] = useState<Record<number, {
