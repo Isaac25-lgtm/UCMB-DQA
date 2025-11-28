@@ -11,6 +11,19 @@ export type { DqaSessionSummary }
 
 const API_BASE = import.meta.env.VITE_API_BASE || 'http://localhost:8000'
 
+function getAuthToken(): string | null {
+  return localStorage.getItem('auth_token')
+}
+
+function getAuthHeaders(): HeadersInit {
+  const token = getAuthToken()
+  const headers: HeadersInit = {}
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`
+  }
+  return headers
+}
+
 export async function fetchFacilities(): Promise<Facility[]> {
   const response = await fetch(`${API_BASE}/facilities`)
   if (!response.ok) throw new Error('Failed to fetch facilities')
@@ -29,8 +42,28 @@ export async function fetchTeams(): Promise<TeamsResponse> {
   return response.json()
 }
 
+export async function login(username: string, password: string): Promise<{ access_token: string }> {
+  const response = await fetch(`${API_BASE}/login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username, password }),
+  })
+  if (!response.ok) {
+    const error = await response.json()
+    throw new Error(error.detail || 'Login failed')
+  }
+  return response.json()
+}
+
 export async function fetchSessions(): Promise<DqaSessionSummary[]> {
-  const response = await fetch(`${API_BASE}/sessions`)
+  const response = await fetch(`${API_BASE}/sessions`, {
+    headers: getAuthHeaders(),
+  })
+  if (response.status === 401) {
+    localStorage.removeItem('auth_token')
+    window.location.href = '/login'
+    throw new Error('Unauthorized')
+  }
   if (!response.ok) throw new Error('Failed to fetch sessions')
   return response.json()
 }
@@ -57,7 +90,14 @@ export async function createSession(
 }
 
 export async function downloadExport(): Promise<void> {
-  const response = await fetch(`${API_BASE}/export`)
+  const response = await fetch(`${API_BASE}/export`, {
+    headers: getAuthHeaders(),
+  })
+  if (response.status === 401) {
+    localStorage.removeItem('auth_token')
+    window.location.href = '/login'
+    throw new Error('Unauthorized')
+  }
   if (!response.ok) throw new Error('Failed to download export')
   const blob = await response.blob()
   const url = window.URL.createObjectURL(blob)
@@ -78,8 +118,14 @@ export async function uploadCsv(file: File, team?: string): Promise<void> {
   }
   const response = await fetch(`${API_BASE}/sessions/upload-csv`, {
     method: 'POST',
+    headers: getAuthHeaders(),
     body: formData,
   })
+  if (response.status === 401) {
+    localStorage.removeItem('auth_token')
+    window.location.href = '/login'
+    throw new Error('Unauthorized')
+  }
   if (!response.ok) {
     const error = await response.json()
     throw new Error(error.detail || 'Failed to upload CSV')
@@ -97,7 +143,14 @@ export interface DashboardStats {
 }
 
 export async function fetchDashboardStats(): Promise<DashboardStats> {
-  const response = await fetch(`${API_BASE}/dashboard/stats`)
+  const response = await fetch(`${API_BASE}/dashboard/stats`, {
+    headers: getAuthHeaders(),
+  })
+  if (response.status === 401) {
+    localStorage.removeItem('auth_token')
+    window.location.href = '/login'
+    throw new Error('Unauthorized')
+  }
   if (!response.ok) throw new Error('Failed to fetch dashboard stats')
   return response.json()
 }
@@ -105,7 +158,13 @@ export async function fetchDashboardStats(): Promise<DashboardStats> {
 export async function deleteSession(sessionId: number): Promise<void> {
   const response = await fetch(`${API_BASE}/sessions/${sessionId}`, {
     method: 'DELETE',
+    headers: getAuthHeaders(),
   })
+  if (response.status === 401) {
+    localStorage.removeItem('auth_token')
+    window.location.href = '/login'
+    throw new Error('Unauthorized')
+  }
   if (!response.ok) {
     const error = await response.json()
     throw new Error(error.detail || 'Failed to delete session')

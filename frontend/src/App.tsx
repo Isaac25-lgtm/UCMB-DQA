@@ -1,7 +1,8 @@
-import { BrowserRouter, Routes, Route, Link } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Link, Navigate } from 'react-router-dom'
 import NewDqaSessionPage from './pages/NewDqaSessionPage'
 import SessionDetailPage from './pages/SessionDetailPage'
 import ManagerDashboardPage from './pages/ManagerDashboardPage'
+import LoginPage from './pages/LoginPage'
 
 function App() {
   return (
@@ -10,10 +11,18 @@ function App() {
         <Navbar />
         <div className="container mx-auto px-4 py-8">
           <Routes>
-            <Route path="/" element={<ManagerDashboardPage />} />
+            <Route path="/" element={<Navigate to="/new-session" replace />} />
+            <Route path="/login" element={<LoginPage />} />
             <Route path="/new-session" element={<NewDqaSessionPage />} />
             <Route path="/session/:id" element={<SessionDetailPage />} />
-            <Route path="/dashboard" element={<ManagerDashboardPage />} />
+            <Route 
+              path="/dashboard" 
+              element={
+                <ProtectedRoute>
+                  <ManagerDashboardPage />
+                </ProtectedRoute>
+              } 
+            />
           </Routes>
         </div>
       </div>
@@ -22,6 +31,13 @@ function App() {
 }
 
 function Navbar() {
+  const isAuthenticated = !!localStorage.getItem('auth_token')
+
+  const handleLogout = () => {
+    localStorage.removeItem('auth_token')
+    window.location.href = '/login'
+  }
+
   return (
     <nav className="bg-blue-600 text-white shadow-lg">
       <div className="container mx-auto px-4">
@@ -33,14 +49,29 @@ function Navbar() {
             <Link to="/new-session" className="hover:text-blue-200 transition">
               New DQA Session
             </Link>
-            <Link to="/dashboard" className="hover:text-blue-200 transition">
-              Manager Dashboard
-            </Link>
+            {isAuthenticated && (
+              <>
+                <Link to="/dashboard" className="hover:text-blue-200 transition">
+                  Manager Dashboard
+                </Link>
+                <button
+                  onClick={handleLogout}
+                  className="hover:text-blue-200 transition"
+                >
+                  Logout
+                </button>
+              </>
+            )}
           </div>
         </div>
       </div>
     </nav>
   )
+}
+
+function ProtectedRoute({ children }: { children: React.ReactElement }) {
+  const isAuthenticated = !!localStorage.getItem('auth_token')
+  return isAuthenticated ? children : <Navigate to="/login" replace />
 }
 
 export default App

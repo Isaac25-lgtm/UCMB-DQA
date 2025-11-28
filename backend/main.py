@@ -1,13 +1,16 @@
-from fastapi import FastAPI, Depends, HTTPException, UploadFile, File, Form
+from fastapi import FastAPI, Depends, HTTPException, UploadFile, File, Form, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 import csv
 import io
-from typing import List
+from typing import List, Optional
 from openpyxl import Workbook
 from openpyxl.styles import PatternFill, Font
 from openpyxl.utils import get_column_letter
+from jose import JWTError, jwt
+from datetime import datetime, timedelta
 from openpyxl import Workbook
 from openpyxl.styles import PatternFill, Font
 from openpyxl.utils import get_column_letter
@@ -196,8 +199,23 @@ def get_teams():
         "Team D": ["Biostat Kitgum", "Biostat Gulu RRH", "Abalo Jenda (UCMB Staff)"]
     }
 
+@app.post("/login", response_model=LoginResponse)
+def login(login_data: LoginRequest):
+    """Login endpoint for manager dashboard"""
+    if login_data.username != MANAGER_USERNAME or login_data.password != MANAGER_PASSWORD:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect username or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token = create_access_token(
+        data={"sub": login_data.username}, expires_delta=access_token_expires
+    )
+    return {"access_token": access_token, "token_type": "bearer"}
+
 @app.get("/sessions", response_model=List[DqaSessionSummary])
-def list_sessions(db: Session = Depends(get_db)):
+def list_sessions(db: Session = Depends(get_db), username: str = Depends(verify_token)):
     sessions = get_sessions(db)
     return sessions
 
@@ -261,7 +279,7 @@ def create_dqa_session(session_data: DqaSessionCreate, db: Session = Depends(get
     return session
 
 @app.get("/export")
-def export_csv(db: Session = Depends(get_db)):
+def export_csv(db: Session = Depends(get_db), username: str = Depends(verify_token)):
     """Export all DQA lines as Excel with color-coded percentage deviations"""
     lines = db.query(DqaLine).join(DqaSession).join(Facility).join(Indicator).all()
     
@@ -348,7 +366,8 @@ def export_csv(db: Session = Depends(get_db)):
 def upload_csv(
     file: UploadFile = File(...),
     team: str = Form(None),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    username: str = Depends(verify_token)
 ):
     """Upload CSV file and create session(s)
     
