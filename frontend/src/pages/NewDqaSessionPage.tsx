@@ -54,8 +54,16 @@ export default function NewDqaSessionPage() {
         setFacilities(facilitiesData)
         setIndicators(indicatorsData)
         setTeams(teamsData)
+        
+        // Log for debugging
+        console.log('Loaded data:', {
+          facilities: facilitiesData.length,
+          indicators: indicatorsData.length,
+          teams: Object.keys(teamsData).length
+        })
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to load data')
+        const errorMessage = err instanceof Error ? err.message : 'Failed to load data'
+        setError(`Error: ${errorMessage}. Please ensure the backend is running at ${import.meta.env.VITE_API_BASE || 'http://localhost:8000'}`)
         console.error('Error loading data:', err)
       }
     }

@@ -31,9 +31,20 @@ export async function fetchFacilities(): Promise<Facility[]> {
 }
 
 export async function fetchIndicators(): Promise<Indicator[]> {
-  const response = await fetch(`${API_BASE}/indicators`)
-  if (!response.ok) throw new Error('Failed to fetch indicators')
-  return response.json()
+  try {
+    const response = await fetch(`${API_BASE}/indicators`)
+    if (!response.ok) {
+      const errorText = await response.text()
+      throw new Error(`Failed to fetch indicators: ${response.status} ${response.statusText}. ${errorText}`)
+    }
+    const data = await response.json()
+    return data
+  } catch (err) {
+    if (err instanceof TypeError && err.message.includes('fetch')) {
+      throw new Error(`Cannot connect to backend at ${API_BASE}. Please ensure the backend server is running.`)
+    }
+    throw err
+  }
 }
 
 export async function fetchTeams(): Promise<TeamsResponse> {
