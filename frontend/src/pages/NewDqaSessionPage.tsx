@@ -295,13 +295,7 @@ export default function NewDqaSessionPage() {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {dataLoading ? (
-                  <tr>
-                    <td colSpan={9} className="px-4 py-8 text-center text-gray-500">
-                      Loading indicators...
-                    </td>
-                  </tr>
-                ) : indicators.length === 0 ? (
+                {indicators.length === 0 ? (
                   <tr>
                     <td colSpan={9} className="px-4 py-8 text-center text-gray-500">
                       No indicators found. Please check your connection and refresh the page.
