@@ -40,13 +40,11 @@ export default function NewDqaSessionPage() {
     figure_dhis2?: number | null
   }>>({})
   const [loading, setLoading] = useState(false)
-  const [dataLoading, setDataLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     async function loadData() {
       try {
-        setDataLoading(true)
         setError(null)
         const [facilitiesData, indicatorsData, teamsData] = await Promise.all([
           fetchFacilities(),
@@ -59,8 +57,6 @@ export default function NewDqaSessionPage() {
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load data')
         console.error('Error loading data:', err)
-      } finally {
-        setDataLoading(false)
       }
     }
     loadData()
