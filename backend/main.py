@@ -23,7 +23,11 @@ from schemas import (
     DqaSessionCreate,
     DqaSessionResponse,
     DqaSessionSummary,
-    DqaLineResponse
+    DqaLineResponse,
+    LoginRequest,
+    LoginResponse,
+    DashboardStats,
+    TeamsResponse
 )
 from crud import (
     get_facilities,
@@ -38,6 +42,46 @@ from crud import (
 )
 
 app = FastAPI()
+
+# Security configuration
+SECRET_KEY = "dqa-tool-secret-key-change-in-production"
+ALGORITHM = "HS256"
+ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24  # 24 hours
+
+# Manager credentials
+MANAGER_USERNAME = "jendabalo22@gmail.com"
+MANAGER_PASSWORD = "dataqualityassessment"
+
+security = HTTPBearer()
+
+def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
+    to_encode = data.copy()
+    if expires_delta:
+        expire = datetime.utcnow() + expires_delta
+    else:
+        expire = datetime.utcnow() + timedelta(minutes=15)
+    to_encode.update({"exp": expire})
+    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    return encoded_jwt
+
+def verify_token(credentials: HTTPAuthorizationCredentials = Depends(security)):
+    try:
+        token = credentials.credentials
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        username: str = payload.get("sub")
+        if username is None:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Invalid authentication credentials",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        return username
+    except JWTError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid authentication credentials",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
 
 # CORS middleware
 # Allow both localhost (development) and Render (production) origins
@@ -219,8 +263,8 @@ def list_sessions(db: Session = Depends(get_db), username: str = Depends(verify_
     sessions = get_sessions(db)
     return sessions
 
-@app.get("/dashboard/stats")
-def get_dashboard_stats_endpoint(db: Session = Depends(get_db)):
+@app.get("/dashboard/stats", response_model=DashboardStats)
+def get_dashboard_stats_endpoint(db: Session = Depends(get_db), username: str = Depends(verify_token)):
     """Get dashboard statistics for graphs"""
     return get_dashboard_stats(db)
 
