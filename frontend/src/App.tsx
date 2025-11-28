@@ -10,16 +10,16 @@ function App() {
       <div className="min-h-screen bg-gray-50">
         <Routes>
           <Route path="/login" element={<LoginPage />} />
-          <Route path="*" element={
+          <Route path="/" element={
             <>
               <Navbar />
               <div className="container mx-auto px-4 py-8">
                 <Routes>
-                  <Route path="/" element={<Navigate to="/new-session" replace />} />
-                  <Route path="/new-session" element={<NewDqaSessionPage />} />
-                  <Route path="/session/:id" element={<SessionDetailPage />} />
+                  <Route index element={<Navigate to="/new-session" replace />} />
+                  <Route path="new-session" element={<NewDqaSessionPage />} />
+                  <Route path="session/:id" element={<SessionDetailPage />} />
                   <Route 
-                    path="/dashboard" 
+                    path="dashboard" 
                     element={
                       <ProtectedRoute>
                         <ManagerDashboardPage />
