@@ -75,9 +75,29 @@ The SQLite database (`dqa.db`) is automatically created on first run. Seed data 
 
 - `GET /facilities` - List all facilities
 - `GET /indicators` - List all indicators
+- `GET /teams` - List all teams with members
 - `GET /sessions` - List all sessions with summaries
 - `GET /sessions/{id}` - Get session details
 - `POST /sessions` - Create a new session
-- `GET /export` - Download all data as CSV
-- `POST /sessions/upload-csv` - Upload CSV file
+- `GET /export` - Download all data as Excel (with color-coded deviations)
+- `POST /sessions/upload-csv` - Upload CSV file (with team assignment)
+- `GET /dashboard/stats` - Get dashboard statistics for graphs
+
+## Deployment
+
+This application is ready for deployment on Render. See [DEPLOYMENT.md](DEPLOYMENT.md) for detailed instructions.
+
+### Quick Deploy to Render
+
+1. Push code to GitHub (already done ✅)
+2. Go to https://dashboard.render.com
+3. Create a new Web Service for the backend
+4. Create a new Static Site for the frontend
+5. Follow the instructions in [DEPLOYMENT.md](DEPLOYMENT.md)
+
+The repository includes:
+- `render.yaml` - Render configuration file
+- `DEPLOYMENT.md` - Step-by-step deployment guide
+- Production-ready CORS settings
+- Environment variable support
 
