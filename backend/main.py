@@ -231,6 +231,16 @@ def calculate_deviations(recount_register, figure_105, figure_dhis2):
     
     return dev_dhis2_vs_reg, dev_105_vs_reg, dev_105_vs_dhis2
 
+@app.get("/")
+def root():
+    """Health check endpoint"""
+    return {"status": "ok", "message": "DQA Tool API is running"}
+
+@app.get("/health")
+def health_check():
+    """Health check endpoint"""
+    return {"status": "healthy"}
+
 @app.get("/facilities", response_model=List[FacilitySchema])
 def list_facilities(db: Session = Depends(get_db)):
     return get_facilities(db)
