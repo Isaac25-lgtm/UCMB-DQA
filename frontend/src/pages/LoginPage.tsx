@@ -16,14 +16,21 @@ export default function LoginPage() {
     setLoading(true)
 
     try {
+      // Add timeout to prevent hanging
+      const controller = new AbortController()
+      const timeoutId = setTimeout(() => controller.abort(), 10000) // 10 second timeout
+
       const response = await fetch(`${API_BASE}/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, password }),
+        signal: controller.signal,
       })
 
+      clearTimeout(timeoutId)
+
       if (!response.ok) {
-        const error = await response.json()
+        const error = await response.json().catch(() => ({ detail: 'Login failed' }))
         throw new Error(error.detail || 'Invalid credentials')
       }
 
@@ -31,7 +38,12 @@ export default function LoginPage() {
       localStorage.setItem('auth_token', data.access_token)
       navigate('/dashboard')
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Login failed')
+      if (err instanceof Error && err.name === 'AbortError') {
+        setError('Login request timed out. Please check your connection and try again.')
+      } else {
+        setError(err instanceof Error ? err.message : 'Login failed. Please check your connection.')
+      }
+      console.error('Login error:', err)
     } finally {
       setLoading(false)
     }

@@ -40,11 +40,14 @@ export default function NewDqaSessionPage() {
     figure_dhis2?: number | null
   }>>({})
   const [loading, setLoading] = useState(false)
+  const [dataLoading, setDataLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     async function loadData() {
       try {
+        setDataLoading(true)
+        setError(null)
         const [facilitiesData, indicatorsData, teamsData] = await Promise.all([
           fetchFacilities(),
           fetchIndicators(),
@@ -55,6 +58,9 @@ export default function NewDqaSessionPage() {
         setTeams(teamsData)
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to load data')
+        console.error('Error loading data:', err)
+      } finally {
+        setDataLoading(false)
       }
     }
     loadData()
@@ -289,7 +295,20 @@ export default function NewDqaSessionPage() {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {indicators.map((indicator) => {
+                {dataLoading ? (
+                  <tr>
+                    <td colSpan={9} className="px-4 py-8 text-center text-gray-500">
+                      Loading indicators...
+                    </td>
+                  </tr>
+                ) : indicators.length === 0 ? (
+                  <tr>
+                    <td colSpan={9} className="px-4 py-8 text-center text-gray-500">
+                      No indicators found. Please check your connection and refresh the page.
+                    </td>
+                  </tr>
+                ) : (
+                  indicators.map((indicator) => {
                   const line = lines[indicator.id] || {}
                   const dev_dhis2_vs_reg = calculateDeviation(line.recount_register, line.figure_dhis2)
                   const dev_105_vs_reg = calculateDeviation(line.recount_register, line.figure_105)
@@ -344,7 +363,8 @@ export default function NewDqaSessionPage() {
                       </td>
                     </tr>
                   )
-                })}
+                  })
+                )}
               </tbody>
             </table>
           </div>
