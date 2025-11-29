@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { fetchFacilities, fetchIndicators, createSession, fetchTeams, downloadSessionExport } from '../api'
 import type { Facility, Indicator, DqaLineCreate, TeamsResponse } from '../types'
 
@@ -23,7 +22,6 @@ function formatDeviation(dev: number | null): string {
 }
 
 export default function NewDqaSessionPage() {
-  const navigate = useNavigate()
   const [facilities, setFacilities] = useState<Facility[]>([])
   const [indicators, setIndicators] = useState<Indicator[]>([])
   const [teams, setTeams] = useState<TeamsResponse>({})
