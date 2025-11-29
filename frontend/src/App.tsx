@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Link } from 'react-router-dom'
 import NewDqaSessionPage from './pages/NewDqaSessionPage'
 import SessionDetailPage from './pages/SessionDetailPage'
 import ManagerDashboardPage from './pages/ManagerDashboardPage'
+import LoginPage from './pages/LoginPage'
 
 function App() {
   return (
@@ -10,10 +11,11 @@ function App() {
         <Navbar />
         <div className="container mx-auto px-4 py-8">
           <Routes>
-            <Route path="/" element={<ManagerDashboardPage />} />
+            <Route path="/" element={<NewDqaSessionPage />} />
             <Route path="/new-session" element={<NewDqaSessionPage />} />
             <Route path="/session/:id" element={<SessionDetailPage />} />
             <Route path="/dashboard" element={<ManagerDashboardPage />} />
+            <Route path="/login" element={<LoginPage />} />
           </Routes>
         </div>
       </div>
@@ -35,6 +37,11 @@ function Navbar() {
             </Link>
             <Link to="/dashboard" className="hover:text-blue-200 transition">
               Manager Dashboard
+            </Link>
+          </div>
+          <div className="flex items-center space-x-4">
+            <Link to="/login" className="text-sm hover:text-blue-200 transition">
+              Manager Login
             </Link>
           </div>
         </div>

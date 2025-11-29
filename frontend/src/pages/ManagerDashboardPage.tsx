@@ -17,6 +17,13 @@ export default function ManagerDashboardPage() {
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
+    // Simple front-end guard to require manager login
+    const isLoggedIn = localStorage.getItem('managerAuth') === 'true'
+    if (!isLoggedIn) {
+      navigate('/login', { replace: true })
+      return
+    }
+
     loadSessions()
     loadStats()
     loadTeams()
