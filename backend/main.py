@@ -360,6 +360,85 @@ def export_csv(db: Session = Depends(get_db)):
         headers={"Content-Disposition": "attachment; filename=dqa_export.xlsx"}
     )
 
+
+@app.get("/export/session/{session_id}")
+def export_session_csv(session_id: int, db: Session = Depends(get_db)):
+    """Export a single DQA session as Excel with color-coded percentage deviations"""
+    session = db.query(DqaSession).filter(DqaSession.id == session_id).first()
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+    lines = db.query(DqaLine).join(Indicator).filter(DqaLine.session_id == session_id).all()
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "DQA Data"
+
+    green_fill = PatternFill(start_color="C6EFCE", end_color="C6EFCE", fill_type="solid")
+    yellow_fill = PatternFill(start_color="FFEB9C", end_color="FFEB9C", fill_type="solid")
+    red_fill = PatternFill(start_color="FFC7CE", end_color="FFC7CE", fill_type="solid")
+    gray_fill = PatternFill(start_color="E0E0E0", end_color="E0E0E0", fill_type="solid")
+
+    headers = [
+        "district", "facility", "period", "indicator_code", "indicator_name",
+        "recount_register", "figure_105", "figure_dhis2",
+        "dev_dhis2_vs_reg", "dev_105_vs_reg", "dev_105_vs_dhis2"
+    ]
+    for col_idx, header in enumerate(headers, start=1):
+        cell = ws.cell(row=1, column=col_idx, value=header)
+        cell.font = Font(bold=True)
+
+    dev_cols = [9, 10, 11]
+
+    for row_idx, line in enumerate(lines, start=2):
+        row_data = [
+            session.facility.district,
+            session.facility.name,
+            session.period,
+            line.indicator.code,
+            line.indicator.name,
+            line.recount_register,
+            line.figure_105,
+            line.figure_dhis2,
+            line.dev_dhis2_vs_reg,
+            line.dev_105_vs_reg,
+            line.dev_105_vs_dhis2,
+        ]
+
+        for col_idx, value in enumerate(row_data, start=1):
+            cell = ws.cell(row=row_idx, column=col_idx, value=value)
+
+            if col_idx in dev_cols:
+                if value is not None:
+                    cell.value = value
+                    cell.number_format = "0.0%"
+
+                    abs_dev = abs(value)
+                    if abs_dev <= 0.05:
+                        cell.fill = green_fill
+                    elif abs_dev <= 0.10:
+                        cell.fill = yellow_fill
+                    else:
+                        cell.fill = red_fill
+                else:
+                    cell.value = ""
+                    cell.fill = gray_fill
+
+    for col_idx in range(1, len(headers) + 1):
+        column_letter = get_column_letter(col_idx)
+        ws.column_dimensions[column_letter].width = 15
+
+    output = io.BytesIO()
+    wb.save(output)
+    output.seek(0)
+
+    filename = f"dqa_session_{session.id}.xlsx"
+    return StreamingResponse(
+        iter([output.getvalue()]),
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f"attachment; filename={filename}"}
+    )
+
 @app.post("/sessions/upload-csv")
 def upload_csv(
     file: UploadFile = File(...),

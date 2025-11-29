@@ -70,6 +70,20 @@ export async function downloadExport(): Promise<void> {
   document.body.removeChild(a)
 }
 
+export async function downloadSessionExport(sessionId: number): Promise<void> {
+  const response = await fetch(`${API_BASE}/export/session/${sessionId}`)
+  if (!response.ok) throw new Error('Failed to download session export')
+  const blob = await response.blob()
+  const url = window.URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = `dqa_session_${sessionId}.xlsx`
+  document.body.appendChild(a)
+  a.click()
+  window.URL.revokeObjectURL(url)
+  document.body.removeChild(a)
+}
+
 export async function uploadCsv(file: File, team?: string): Promise<void> {
   const formData = new FormData()
   formData.append('file', file)

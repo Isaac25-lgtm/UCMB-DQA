@@ -130,7 +130,7 @@ export default function ManagerDashboardPage() {
 
   return (
     <div className="max-w-7xl mx-auto">
-      <h1 className="text-3xl font-bold mb-6">Manager Dashboard</h1>
+      <h1 className="text-3xl font-bold mb-6">UCMB Dashboard</h1>
 
       {/* Statistics Cards */}
       {stats ? (

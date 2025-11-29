@@ -32,7 +32,7 @@ export default function LoginPage() {
 
   return (
     <div className="max-w-md mx-auto">
-      <h1 className="text-3xl font-bold mb-6 text-center">Manager Login</h1>
+      <h1 className="text-3xl font-bold mb-6 text-center">UCMB Login</h1>
 
       <form onSubmit={handleSubmit} className="bg-white p-6 rounded-lg shadow space-y-4">
         <div>

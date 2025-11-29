@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { fetchFacilities, fetchIndicators, createSession, fetchTeams } from '../api'
+import { fetchFacilities, fetchIndicators, createSession, fetchTeams, downloadSessionExport } from '../api'
 import type { Facility, Indicator, DqaLineCreate, TeamsResponse } from '../types'
 
 function calculateDeviation(value1: number | null | undefined, value2: number | null | undefined): number | null {
@@ -46,6 +46,7 @@ export default function NewDqaSessionPage() {
   }>>({})
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [submitMessage, setSubmitMessage] = useState<string | null>(null)
 
   useEffect(() => {
     async function loadData() {
@@ -139,6 +140,7 @@ export default function NewDqaSessionPage() {
 
     setLoading(true)
     setError(null)
+    setSubmitMessage(null)
 
     try {
       const linesData: DqaLineCreate[] = indicators.map(ind => ({
@@ -155,7 +157,11 @@ export default function NewDqaSessionPage() {
         lines: linesData,
       })
 
-      navigate(`/session/${session.id}`)
+      // Automatically download Excel for this specific session (current facility submission)
+      await downloadSessionExport(session.id)
+
+      // Small inline notification to the user near the submit section
+      setSubmitMessage('submited to UCMB and copy downloaded to local device')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create session')
     } finally {
@@ -361,22 +367,29 @@ export default function NewDqaSessionPage() {
           </div>
         )}
 
-        <div className="flex justify-end gap-3">
-          <button
-            type="button"
-            onClick={handleDownload}
-            disabled={loading || !selectedFacilityId}
-            className="px-6 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 disabled:opacity-50"
-          >
-            Download Template CSV
-          </button>
-          <button
-            type="submit"
-            disabled={loading}
-            className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
-          >
-            {loading ? 'Saving...' : 'Submit Session'}
-          </button>
+        <div className="flex items-center justify-end gap-4">
+          {submitMessage && (
+            <span className="text-sm text-green-700 bg-green-50 border border-green-200 rounded px-3 py-1">
+              {submitMessage}
+            </span>
+          )}
+          <div className="flex gap-3">
+            <button
+              type="button"
+              onClick={handleDownload}
+              disabled={loading || !selectedFacilityId}
+              className="px-6 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 disabled:opacity-50"
+            >
+              Download Template CSV
+            </button>
+            <button
+              type="submit"
+              disabled={loading}
+              className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+            >
+              {loading ? 'Saving...' : 'Submit Session'}
+            </button>
+          </div>
         </div>
       </form>
     </div>

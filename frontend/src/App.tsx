@@ -32,16 +32,24 @@ function Navbar() {
             <Link to="/new-session" className="text-xl font-bold">
               DQA Tool - MNH
             </Link>
-            <Link to="/new-session" className="hover:text-blue-200 transition">
-              New DQA Session
-            </Link>
-            <Link to="/dashboard" className="hover:text-blue-200 transition">
-              Manager Dashboard
-            </Link>
+            <div className="flex items-center space-x-3">
+              <Link
+                to="/new-session"
+                className="px-4 py-1.5 rounded-full bg-white text-blue-700 text-sm font-semibold shadow hover:bg-blue-50 hover:text-blue-800 transition"
+              >
+                New DQA Session
+              </Link>
+              <Link
+                to="/dashboard"
+                className="px-4 py-1.5 rounded-full border border-white/80 text-sm font-semibold hover:bg-white hover:text-blue-700 transition"
+              >
+                UCMB Dashboard
+              </Link>
+            </div>
           </div>
           <div className="flex items-center space-x-4">
             <Link to="/login" className="text-sm hover:text-blue-200 transition">
-              Manager Login
+              UCMB Login
             </Link>
           </div>
         </div>

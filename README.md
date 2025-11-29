@@ -56,7 +56,7 @@ The frontend will be available at `http://localhost:5173`
 ## Features
 
 - **Online Assessment Form**: Create new DQA sessions with facility and indicator data
-- **Manager Dashboard**: View all sessions with summary statistics
+- **UCMB Dashboard**: View all sessions with summary statistics
 - **Excel Export**: Download all data as Excel with color-coded percentage deviations
 - **CSV Upload**: Upload offline-filled CSV data (only requires: facility, district, period, indicator_code, recount_register, figure_105, figure_dhis2)
 - **Automatic Calculations**: Deviations are automatically calculated from uploaded data
