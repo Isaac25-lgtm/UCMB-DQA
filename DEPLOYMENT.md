@@ -107,6 +107,7 @@ if DATABASE_URL.startswith("postgres://"):
 ### Backend
 - `PORT`: Automatically set by Render
 - `DATABASE_URL`: Optional (defaults to SQLite)
+- `GEMINI_API_KEY`: Optional - Google Gemini API key for AI-generated report summaries and insights (get free key at https://ai.google.dev/)
 
 ### Frontend
 - `VITE_API_BASE`: Your backend URL (e.g., `https://dqa-backend.onrender.com`)

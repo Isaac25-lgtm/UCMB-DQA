@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { fetchSessions, downloadExport, uploadCsv, fetchDashboardStats, fetchTeams, deleteSession } from '../api'
+import { fetchSessions, downloadExport, uploadCsv, fetchDashboardStats, fetchTeams, deleteSession, downloadEnhancedReport } from '../api'
 import type { DqaSessionSummary, DashboardStats } from '../api'
 import type { TeamsResponse } from '../types'
 import { BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts'
@@ -89,6 +89,18 @@ export default function ManagerDashboardPage() {
       await downloadExport()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to download CSV')
+    }
+  }
+
+  async function handleGenerateEnhancedReport() {
+    try {
+      setLoading(true)
+      setError(null)
+      await downloadEnhancedReport()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to generate enhanced report')
+    } finally {
+      setLoading(false)
     }
   }
 
@@ -247,13 +259,26 @@ export default function ManagerDashboardPage() {
 
       <div className="bg-white p-6 rounded-lg shadow mb-6">
         <div className="space-y-4">
-          <div className="flex flex-wrap gap-4">
-            <button
-              onClick={handleDownload}
-              className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500"
-            >
-              Download all data as Excel
-            </button>
+          <div>
+            <h3 className="text-lg font-semibold mb-3">Generate Reports</h3>
+            <div className="flex flex-wrap gap-4">
+              <button
+                onClick={handleDownload}
+                className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500"
+              >
+                Download all data as Excel
+              </button>
+              <button
+                onClick={handleGenerateEnhancedReport}
+                disabled={loading}
+                className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:opacity-50"
+              >
+                {loading ? 'Generating...' : 'Generate Enhanced Report'}
+              </button>
+            </div>
+            <p className="mt-2 text-xs text-gray-500">
+              Enhanced Report includes charts, summaries, and multi-sheet analysis
+            </p>
           </div>
           
           <div className="border-t pt-4">

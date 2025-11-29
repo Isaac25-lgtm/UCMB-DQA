@@ -58,6 +58,7 @@ The frontend will be available at `http://localhost:5173`
 - **Online Assessment Form**: Create new DQA sessions with facility and indicator data
 - **UCMB Dashboard**: View all sessions with summary statistics
 - **Excel Export**: Download all data as Excel with color-coded percentage deviations
+- **Enhanced Reports**: Generate multi-sheet Excel reports with embedded charts, summaries, and AI-generated insights (optional)
 - **CSV Upload**: Upload offline-filled CSV data (only requires: facility, district, period, indicator_code, recount_register, figure_105, figure_dhis2)
 - **Automatic Calculations**: Deviations are automatically calculated from uploaded data
 - **Deviation Analysis**: Automatic calculation and color-coding of deviations:
@@ -80,6 +81,7 @@ The SQLite database (`dqa.db`) is automatically created on first run. Seed data 
 - `GET /sessions/{id}` - Get session details
 - `POST /sessions` - Create a new session
 - `GET /export` - Download all data as Excel (with color-coded deviations)
+- `GET /reports/enhanced` - Generate enhanced Excel report with charts, summaries, and AI insights
 - `POST /sessions/upload-csv` - Upload CSV file (with team assignment)
 - `GET /dashboard/stats` - Get dashboard statistics for graphs
 

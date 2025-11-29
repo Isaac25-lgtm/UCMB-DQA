@@ -126,3 +126,17 @@ export async function deleteSession(sessionId: number): Promise<void> {
   }
 }
 
+export async function downloadEnhancedReport(): Promise<void> {
+  const response = await fetch(`${API_BASE}/reports/enhanced`)
+  if (!response.ok) throw new Error('Failed to download enhanced report')
+  const blob = await response.blob()
+  const url = window.URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = 'dqa_enhanced_report.xlsx'
+  document.body.appendChild(a)
+  a.click()
+  window.URL.revokeObjectURL(url)
+  document.body.removeChild(a)
+}
+

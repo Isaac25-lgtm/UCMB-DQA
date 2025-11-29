@@ -7,14 +7,128 @@ import csv
 import io
 from typing import List
 from openpyxl import Workbook
-from openpyxl.styles import PatternFill, Font
+from openpyxl.styles import PatternFill, Font, Alignment
 from openpyxl.utils import get_column_letter
-from openpyxl import Workbook
-from openpyxl.styles import PatternFill, Font
-from openpyxl.utils import get_column_letter
+from openpyxl.chart import PieChart, BarChart, Reference
 
 from database import engine, get_db, Base
 from models import Facility, Indicator, DqaSession, DqaLine
+
+# Optional AI integration for report summaries
+try:
+    import google.generativeai as genai
+    GEMINI_AVAILABLE = True
+except ImportError:
+    GEMINI_AVAILABLE = False
+
+def generate_ai_summary(stats, sessions, lines):
+    """Generate AI-powered executive summary using Google Gemini API"""
+    if not GEMINI_AVAILABLE:
+        return None
+    
+    api_key = os.getenv("GEMINI_API_KEY")
+    if not api_key:
+        return None
+    
+    try:
+        genai.configure(api_key=api_key)
+        model = genai.GenerativeModel('gemini-pro')
+        
+        # Calculate additional statistics
+        completion_rate = round((stats['assessed_facilities'] / stats['total_facilities'] * 100) if stats['total_facilities'] > 0 else 0)
+        
+        # Count deviations
+        red_count = 0
+        amber_count = 0
+        green_count = 0
+        for line in lines:
+            if line.dev_dhis2_vs_reg is not None:
+                abs_dev = abs(line.dev_dhis2_vs_reg)
+                if abs_dev > 0.10:
+                    red_count += 1
+                elif abs_dev > 0.05:
+                    amber_count += 1
+                else:
+                    green_count += 1
+        
+        # Build team performance summary
+        team_summary = "\n".join([f"- {t['team']}: {t['facilities_assessed']} facilities assessed" for t in stats['team_progress']])
+        
+        prompt = f"""Generate a professional executive summary for a Data Quality Assurance (DQA) assessment report for Maternal and Newborn Health (MNH) indicators.
+
+Assessment Statistics:
+- Total Facilities: {stats['total_facilities']}
+- Facilities Assessed: {stats['assessed_facilities']}
+- Completion Rate: {completion_rate}%
+- Total Assessment Sessions: {stats['total_sessions']}
+
+Data Quality Findings:
+- High Quality (≤5% deviation): {green_count} indicators
+- Moderate Quality (5-10% deviation): {amber_count} indicators
+- Low Quality (>10% deviation): {red_count} indicators
+
+Team Performance:
+{team_summary}
+
+Please provide a concise 3-paragraph executive summary that:
+1. Highlights key achievements and overall progress
+2. Identifies areas requiring attention based on data quality findings
+3. Provides actionable recommendations for improvement
+
+Write in a professional, clear, and concise style suitable for healthcare management."""
+        
+        response = model.generate_content(prompt)
+        return response.text.strip()
+    except Exception as e:
+        print(f"Gemini API error: {e}")
+        return None
+
+def generate_ai_team_insights(stats, sessions):
+    """Generate AI-powered insights for team performance"""
+    if not GEMINI_AVAILABLE:
+        return None
+    
+    api_key = os.getenv("GEMINI_API_KEY")
+    if not api_key:
+        return None
+    
+    try:
+        genai.configure(api_key=api_key)
+        model = genai.GenerativeModel('gemini-pro')
+        
+        # Calculate sessions per team
+        team_sessions = {}
+        for session in sessions:
+            team = session.get('team', 'Unknown')
+            if team not in team_sessions:
+                team_sessions[team] = 0
+            team_sessions[team] += 1
+        
+        # Build detailed team data
+        team_data = []
+        for team_info in stats['team_progress']:
+            team_name = team_info['team']
+            team_data.append(f"{team_name}: {team_info['facilities_assessed']} facilities, {team_sessions.get(team_name, 0)} sessions")
+        
+        team_details = "\n".join(team_data)
+        
+        prompt = f"""Analyze team performance data from a DQA assessment and provide insights:
+
+Team Performance Data:
+{team_details}
+
+Provide 2-3 bullet points of insights:
+- Identify top performing teams
+- Highlight teams that may need additional support
+- Suggest strategies for improvement
+
+Keep it concise and actionable."""
+        
+        response = model.generate_content(prompt)
+        return response.text.strip()
+    except Exception as e:
+        print(f"Gemini API error (team insights): {e}")
+        return None
 from schemas import (
     Facility as FacilitySchema,
     Indicator as IndicatorSchema,
@@ -40,6 +154,13 @@ app = FastAPI()
 # CORS middleware
 # Allow both localhost (development) and Render (production) origins
 import os
+
+# Try to load .env file if python-dotenv is available (for local development)
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass  # dotenv not installed, use environment variables directly
 allowed_origins = [
     "http://localhost:5173",
     "http://localhost:3000",
@@ -610,4 +731,357 @@ def upload_csv(
         created_sessions.append(session)
     
     return {"message": f"Created {len(created_sessions)} session(s)", "sessions": [s.id for s in created_sessions]}
+
+@app.get("/reports/enhanced")
+def generate_enhanced_report(db: Session = Depends(get_db)):
+    """Generate enhanced Excel report with charts, summaries, and multi-sheet structure"""
+    # Get all data
+    lines = db.query(DqaLine).join(DqaSession).join(Facility).join(Indicator).all()
+    stats = get_dashboard_stats(db)
+    sessions = get_sessions(db)
+    
+    # Create workbook
+    wb = Workbook()
+    
+    # Remove default sheet
+    wb.remove(wb.active)
+    
+    # Define colors
+    green_fill = PatternFill(start_color="C6EFCE", end_color="C6EFCE", fill_type="solid")
+    yellow_fill = PatternFill(start_color="FFEB9C", end_color="FFEB9C", fill_type="solid")
+    red_fill = PatternFill(start_color="FFC7CE", end_color="FFC7CE", fill_type="solid")
+    gray_fill = PatternFill(start_color="E0E0E0", end_color="E0E0E0", fill_type="solid")
+    header_fill = PatternFill(start_color="366092", end_color="366092", fill_type="solid")
+    header_font = Font(bold=True, color="FFFFFF", size=12)
+    title_font = Font(bold=True, size=14)
+    
+    # ========== SHEET 1: Executive Summary ==========
+    ws_summary = wb.create_sheet("Executive Summary")
+    
+    # Title
+    ws_summary.merge_cells('A1:D1')
+    ws_summary['A1'] = "DQA Assessment - Executive Summary"
+    ws_summary['A1'].font = Font(bold=True, size=16)
+    ws_summary['A1'].alignment = Alignment(horizontal='center')
+    
+    # Key Metrics Section
+    row = 3
+    ws_summary[f'A{row}'] = "Key Metrics"
+    ws_summary[f'A{row}'].font = title_font
+    
+    row += 1
+    metrics = [
+        ["Total Facilities", stats['total_facilities']],
+        ["Assessed Facilities", stats['assessed_facilities']],
+        ["Completion Rate", f"{round((stats['assessed_facilities'] / stats['total_facilities'] * 100) if stats['total_facilities'] > 0 else 0)}%"],
+        ["Total Sessions", stats['total_sessions']]
+    ]
+    
+    for metric_name, metric_value in metrics:
+        ws_summary[f'A{row}'] = metric_name
+        ws_summary[f'B{row}'] = metric_value
+        ws_summary[f'A{row}'].font = Font(bold=True)
+        row += 1
+    
+    # Team Performance Summary
+    row += 2
+    ws_summary[f'A{row}'] = "Team Performance Summary"
+    ws_summary[f'A{row}'].font = title_font
+    
+    row += 1
+    ws_summary[f'A{row}'] = "Team"
+    ws_summary[f'B{row}'] = "Facilities Assessed"
+    ws_summary[f'A{row}'].font = header_font
+    ws_summary[f'B{row}'].font = header_font
+    ws_summary[f'A{row}'].fill = header_fill
+    ws_summary[f'B{row}'].fill = header_fill
+    
+    for team_data in stats['team_progress']:
+        row += 1
+        ws_summary[f'A{row}'] = team_data['team']
+        ws_summary[f'B{row}'] = team_data['facilities_assessed']
+    
+    # AI-Generated Executive Summary
+    row += 3
+    ws_summary[f'A{row}'] = "AI-Generated Executive Summary"
+    ws_summary[f'A{row}'].font = title_font
+    
+    # Generate AI summary
+    ai_summary = generate_ai_summary(stats, sessions, lines)
+    
+    if ai_summary:
+        row += 1
+        # Split summary into paragraphs and add to cells
+        paragraphs = ai_summary.split('\n\n')
+        for para in paragraphs:
+            if para.strip():
+                ws_summary[f'A{row}'] = para.strip()
+                ws_summary[f'A{row}'].alignment = Alignment(wrap_text=True, vertical='top')
+                # Merge cells for better readability (columns A-D)
+                ws_summary.merge_cells(f'A{row}:D{row}')
+                row += 1
+    else:
+        row += 1
+        ws_summary[f'A{row}'] = "AI summary not available. Set GEMINI_API_KEY environment variable to enable AI-generated insights."
+        ws_summary[f'A{row}'].font = Font(italic=True, color="808080")
+        ws_summary.merge_cells(f'A{row}:D{row}')
+    
+    # Adjust column widths
+    ws_summary.column_dimensions['A'].width = 25
+    ws_summary.column_dimensions['B'].width = 20
+    ws_summary.column_dimensions['C'].width = 30
+    ws_summary.column_dimensions['D'].width = 30
+    
+    # ========== SHEET 2: Charts & Visualizations ==========
+    ws_charts = wb.create_sheet("Charts & Visualizations")
+    
+    # Overall Progress Pie Chart Data
+    ws_charts['A1'] = "Overall Progress"
+    ws_charts['A1'].font = title_font
+    ws_charts['A3'] = "Category"
+    ws_charts['B3'] = "Count"
+    ws_charts['A3'].font = header_font
+    ws_charts['B3'].font = header_font
+    ws_charts['A3'].fill = header_fill
+    ws_charts['B3'].fill = header_fill
+    
+    ws_charts['A4'] = "Assessed"
+    ws_charts['B4'] = stats['assessed_facilities']
+    ws_charts['A5'] = "Remaining"
+    ws_charts['B5'] = stats['total_facilities'] - stats['assessed_facilities']
+    
+    # Create Pie Chart
+    pie = PieChart()
+    pie.title = "Overall Progress"
+    data = Reference(ws_charts, min_col=2, min_row=3, max_row=5)
+    cats = Reference(ws_charts, min_col=1, min_row=4, max_row=5)
+    pie.add_data(data, titles_from_data=False)
+    pie.set_categories(cats)
+    pie.width = 10
+    pie.height = 7
+    ws_charts.add_chart(pie, "D2")
+    
+    # Team Progress Bar Chart Data
+    chart_row = 10
+    ws_charts[f'A{chart_row}'] = "Team Progress"
+    ws_charts[f'A{chart_row}'].font = title_font
+    chart_row += 1
+    ws_charts[f'A{chart_row}'] = "Team"
+    ws_charts[f'B{chart_row}'] = "Facilities Assessed"
+    ws_charts[f'A{chart_row}'].font = header_font
+    ws_charts[f'B{chart_row}'].font = header_font
+    ws_charts[f'A{chart_row}'].fill = header_fill
+    ws_charts[f'B{chart_row}'].fill = header_fill
+    
+    chart_row += 1
+    for team_data in stats['team_progress']:
+        ws_charts[f'A{chart_row}'] = team_data['team']
+        ws_charts[f'B{chart_row}'] = team_data['facilities_assessed']
+        chart_row += 1
+    
+    # Create Bar Chart
+    bar = BarChart()
+    bar.title = "Facilities Assessed by Team"
+    bar.type = "col"
+    bar.style = 10
+    data = Reference(ws_charts, min_col=2, min_row=chart_row - len(stats['team_progress']), max_row=chart_row - 1)
+    cats = Reference(ws_charts, min_col=1, min_row=chart_row - len(stats['team_progress']), max_row=chart_row - 1)
+    bar.add_data(data, titles_from_data=False)
+    bar.set_categories(cats)
+    bar.width = 10
+    bar.height = 7
+    ws_charts.add_chart(bar, "D10")
+    
+    ws_charts.column_dimensions['A'].width = 20
+    ws_charts.column_dimensions['B'].width = 20
+    
+    # ========== SHEET 3: Detailed Data (existing format) ==========
+    ws_data = wb.create_sheet("Detailed Data")
+    
+    # Header row
+    headers = [
+        "district", "facility", "period", "indicator_code", "indicator_name",
+        "recount_register", "figure_105", "figure_dhis2",
+        "dev_dhis2_vs_reg", "dev_105_vs_reg", "dev_105_vs_dhis2"
+    ]
+    for col_idx, header in enumerate(headers, start=1):
+        cell = ws_data.cell(row=1, column=col_idx, value=header)
+        cell.font = Font(bold=True)
+        cell.fill = header_fill
+        cell.font = header_font
+    
+    # Deviation column indices
+    dev_cols = [9, 10, 11]
+    
+    # Data rows
+    for row_idx, line in enumerate(lines, start=2):
+        row_data = [
+            line.session.facility.district,
+            line.session.facility.name,
+            line.session.period,
+            line.indicator.code,
+            line.indicator.name,
+            line.recount_register,
+            line.figure_105,
+            line.figure_dhis2,
+            line.dev_dhis2_vs_reg,
+            line.dev_105_vs_reg,
+            line.dev_105_vs_dhis2
+        ]
+        
+        for col_idx, value in enumerate(row_data, start=1):
+            cell = ws_data.cell(row=row_idx, column=col_idx, value=value)
+            
+            if col_idx in dev_cols:
+                if value is not None:
+                    cell.value = value
+                    cell.number_format = '0.0%'
+                    abs_dev = abs(value)
+                    if abs_dev <= 0.05:
+                        cell.fill = green_fill
+                    elif abs_dev <= 0.10:
+                        cell.fill = yellow_fill
+                    else:
+                        cell.fill = red_fill
+                else:
+                    cell.value = ""
+                    cell.fill = gray_fill
+    
+    # Auto-adjust column widths
+    for col_idx in range(1, len(headers) + 1):
+        column_letter = get_column_letter(col_idx)
+        ws_data.column_dimensions[column_letter].width = 15
+    
+    # Add comments section at the bottom
+    sessions_dict = {}
+    for line in lines:
+        session_id = line.session.id
+        if session_id not in sessions_dict:
+            sessions_dict[session_id] = {
+                "facility": line.session.facility.name,
+                "district": line.session.facility.district,
+                "period": line.session.period,
+                "comments": line.session.comments
+            }
+    
+    if sessions_dict:
+        comment_start_row = len(lines) + 3
+        ws_data.cell(row=comment_start_row, column=1, value="COMMENTS").font = Font(bold=True, size=12)
+        comment_row = comment_start_row + 1
+        
+        for session_id, session_info in sessions_dict.items():
+            if session_info["comments"]:
+                ws_data.cell(row=comment_row, column=1, value=f"{session_info['facility']} ({session_info['district']}) - {session_info['period']}:").font = Font(bold=True)
+                ws_data.cell(row=comment_row, column=2, value=session_info["comments"])
+                ws_data.merge_cells(start_row=comment_row, start_column=2, end_row=comment_row, end_column=11)
+                comment_row += 1
+    
+    # ========== SHEET 4: Team Analysis ==========
+    ws_teams = wb.create_sheet("Team Analysis")
+    
+    ws_teams['A1'] = "Team Analysis"
+    ws_teams['A1'].font = title_font
+    
+    row = 3
+    ws_teams[f'A{row}'] = "Team"
+    ws_teams[f'B{row}'] = "Facilities Assessed"
+    ws_teams[f'C{row}'] = "Total Sessions"
+    ws_teams[f'A{row}'].font = header_font
+    ws_teams[f'B{row}'].font = header_font
+    ws_teams[f'C{row}'].font = header_font
+    ws_teams[f'A{row}'].fill = header_fill
+    ws_teams[f'B{row}'].fill = header_fill
+    ws_teams[f'C{row}'].fill = header_fill
+    
+    # Calculate sessions per team
+    team_sessions = {}
+    for session in sessions:
+        team = session.get('team', 'Unknown')
+        if team not in team_sessions:
+            team_sessions[team] = 0
+        team_sessions[team] += 1
+    
+    row += 1
+    for team_data in stats['team_progress']:
+        team_name = team_data['team']
+        ws_teams[f'A{row}'] = team_name
+        ws_teams[f'B{row}'] = team_data['facilities_assessed']
+        ws_teams[f'C{row}'] = team_sessions.get(team_name, 0)
+        row += 1
+    
+    # AI-Generated Team Insights
+    row += 2
+    ws_teams[f'A{row}'] = "AI-Generated Team Insights"
+    ws_teams[f'A{row}'].font = title_font
+    
+    ai_insights = generate_ai_team_insights(stats, sessions)
+    
+    if ai_insights:
+        row += 1
+        # Split insights into lines and add to cells
+        insight_lines = ai_insights.split('\n')
+        for line in insight_lines:
+            if line.strip():
+                ws_teams[f'A{row}'] = line.strip()
+                ws_teams[f'A{row}'].alignment = Alignment(wrap_text=True, vertical='top')
+                ws_teams.merge_cells(f'A{row}:C{row}')
+                row += 1
+    else:
+        row += 1
+        ws_teams[f'A{row}'] = "AI insights not available. Set GEMINI_API_KEY environment variable to enable AI-generated insights."
+        ws_teams[f'A{row}'].font = Font(italic=True, color="808080")
+        ws_teams.merge_cells(f'A{row}:C{row}')
+    
+    ws_teams.column_dimensions['A'].width = 20
+    ws_teams.column_dimensions['B'].width = 20
+    ws_teams.column_dimensions['C'].width = 20
+    
+    # ========== SHEET 5: Comments ==========
+    ws_comments = wb.create_sheet("Comments")
+    
+    ws_comments['A1'] = "Facility Comments"
+    ws_comments['A1'].font = title_font
+    
+    row = 3
+    ws_comments[f'A{row}'] = "Facility"
+    ws_comments[f'B{row}'] = "District"
+    ws_comments[f'C{row}'] = "Period"
+    ws_comments[f'D{row}'] = "Comments"
+    ws_comments[f'A{row}'].font = header_font
+    ws_comments[f'B{row}'].font = header_font
+    ws_comments[f'C{row}'].font = header_font
+    ws_comments[f'D{row}'].font = header_font
+    ws_comments[f'A{row}'].fill = header_fill
+    ws_comments[f'B{row}'].fill = header_fill
+    ws_comments[f'C{row}'].fill = header_fill
+    ws_comments[f'D{row}'].fill = header_fill
+    
+    row += 1
+    for session_id, session_info in sessions_dict.items():
+        if session_info["comments"]:
+            ws_comments[f'A{row}'] = session_info['facility']
+            ws_comments[f'B{row}'] = session_info['district']
+            ws_comments[f'C{row}'] = session_info['period']
+            ws_comments[f'D{row}'] = session_info['comments']
+            ws_comments[f'D{row}'].alignment = Alignment(wrap_text=True)
+            row += 1
+    
+    if row == 4:  # No comments found
+        ws_comments['A4'] = "No comments available"
+    
+    ws_comments.column_dimensions['A'].width = 30
+    ws_comments.column_dimensions['B'].width = 20
+    ws_comments.column_dimensions['C'].width = 20
+    ws_comments.column_dimensions['D'].width = 50
+    
+    # Save to BytesIO
+    output = io.BytesIO()
+    wb.save(output)
+    output.seek(0)
+    
+    return StreamingResponse(
+        iter([output.getvalue()]),
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": "attachment; filename=dqa_enhanced_report.xlsx"}
+    )
 
