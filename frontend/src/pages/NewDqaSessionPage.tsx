@@ -42,6 +42,7 @@ export default function NewDqaSessionPage() {
     figure_105?: number | null
     figure_dhis2?: number | null
   }>>({})
+  const [comments, setComments] = useState<string>('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [submitMessage, setSubmitMessage] = useState<string | null>(null)
@@ -95,8 +96,8 @@ export default function NewDqaSessionPage() {
     // Prepare CSV data - empty template for offline filling
     const csvRows: string[] = []
     
-    // Header - correct order: facility, district, period, indicator_code, recount_register, figure_105, figure_dhis2, team
-    csvRows.push('facility,district,period,indicator_code,recount_register,figure_105,figure_dhis2,team')
+    // Header - correct order: facility, district, period, indicator_name, recount_register, figure_105, figure_dhis2, team
+    csvRows.push('facility,district,period,indicator_name,recount_register,figure_105,figure_dhis2,team')
     
     // Data rows - all data columns empty, team column empty
     indicators.forEach(indicator => {
@@ -104,13 +105,25 @@ export default function NewDqaSessionPage() {
         selectedFacility.name,
         selectedFacility.district,
         period,
-        indicator.code,
+        indicator.name, // Use indicator name instead of code
         '', // recount_register - empty
         '', // figure_105 - empty
         '', // figure_dhis2 - empty
         ''  // team - empty (manager will assign when uploading)
       ].join(','))
     })
+    
+    // Add comments as the last row - COMMENTS in indicator_name column, comment text in recount_register column
+    csvRows.push([
+      selectedFacility.name,
+      selectedFacility.district,
+      period,
+      'COMMENTS',
+      '', // recount_register column - user can put comment text here
+      '', // figure_105 - empty
+      '', // figure_dhis2 - empty
+      ''  // team - empty
+    ].join(','))
     
     // Create and download
     const csvContent = csvRows.join('\n')
@@ -153,6 +166,7 @@ export default function NewDqaSessionPage() {
         period: period.trim(),
         team: selectedTeam,
         lines: linesData,
+        comments: comments.trim() || null,
       })
 
       // Automatically download Excel for this specific session (current facility submission)
@@ -368,6 +382,23 @@ export default function NewDqaSessionPage() {
               </tbody>
             </table>
           </div>
+        </div>
+
+        {/* Comments Section */}
+        <div className="bg-white p-6 rounded-lg shadow">
+          <label className="block text-sm font-medium text-gray-700 mb-2">
+            Comments (Optional)
+          </label>
+          <textarea
+            value={comments}
+            onChange={(e) => setComments(e.target.value)}
+            rows={4}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            placeholder="Add any comments or notes about this facility assessment..."
+          />
+          <p className="mt-1 text-xs text-gray-500">
+            Comments will appear in the downloaded Excel file
+          </p>
         </div>
 
         {error && (

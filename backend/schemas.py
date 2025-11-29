@@ -49,6 +49,7 @@ class DqaSessionCreate(BaseModel):
     period: str
     team: str
     lines: List[DqaLineCreate]
+    comments: Optional[str] = None
 
 class DqaSessionResponse(BaseModel):
     id: int
@@ -56,6 +57,7 @@ class DqaSessionResponse(BaseModel):
     period: str
     created_at: datetime
     team: Optional[str]
+    comments: Optional[str]
     facility: Facility
     lines: List[DqaLineResponse]
     

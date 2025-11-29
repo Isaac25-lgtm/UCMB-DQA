@@ -31,6 +31,7 @@ class DqaSession(Base):
     period = Column(String, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     team = Column(String, nullable=False)
+    comments = Column(String, nullable=True)
     
     facility = relationship("Facility", back_populates="sessions")
     lines = relationship("DqaLine", back_populates="session", cascade="all, delete-orphan")

@@ -36,6 +36,7 @@ export interface DqaSessionCreate {
   period: string
   team: string
   lines: DqaLineCreate[]
+  comments?: string | null
 }
 
 export interface DqaSessionResponse {
@@ -44,6 +45,7 @@ export interface DqaSessionResponse {
   period: string
   created_at: string
   team?: string | null
+  comments?: string | null
   facility: Facility
   lines: DqaLineResponse[]
 }

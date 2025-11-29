@@ -134,6 +134,13 @@ export default function ManagerDashboardPage() {
     }
   }
 
+  function handleLogout() {
+    // Clear authentication and redirect to login
+    localStorage.removeItem('managerAuth')
+    localStorage.removeItem('managerLastDashboardTs')
+    navigate('/login', { replace: true })
+  }
+
 
   if (loading && sessions.length === 0) {
     return (
@@ -153,7 +160,15 @@ export default function ManagerDashboardPage() {
 
   return (
     <div className="max-w-7xl mx-auto">
-      <h1 className="text-3xl font-bold mb-6">UCMB Dashboard</h1>
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-3xl font-bold">UCMB Dashboard</h1>
+        <button
+          onClick={handleLogout}
+          className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 transition"
+        >
+          Log Out
+        </button>
+      </div>
 
       {/* Statistics Cards */}
       {stats ? (

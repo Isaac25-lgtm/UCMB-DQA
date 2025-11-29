@@ -2,6 +2,7 @@ from fastapi import FastAPI, Depends, HTTPException, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
+from sqlalchemy import text
 import csv
 import io
 from typing import List
@@ -68,6 +69,24 @@ app.add_middleware(
 
 # Create tables
 Base.metadata.create_all(bind=engine)
+
+# Add comments column if it doesn't exist (migration)
+def migrate_database():
+    """Add new columns to existing database"""
+    conn = engine.connect()
+    try:
+        # Check if comments column exists
+        result = conn.execute(text("PRAGMA table_info(dqa_sessions)"))
+        columns = [row[1] for row in result]
+        if 'comments' not in columns:
+            conn.execute(text("ALTER TABLE dqa_sessions ADD COLUMN comments TEXT"))
+            conn.commit()
+    except Exception as e:
+        print(f"Migration note: {e}")
+    finally:
+        conn.close()
+
+migrate_database()
 
 # Seed data
 def seed_data():
@@ -248,7 +267,8 @@ def create_dqa_session(session_data: DqaSessionCreate, db: Session = Depends(get
     session_dict = {
         "facility_id": session_data.facility_id,
         "period": session_data.period,
-        "team": session_data.team
+        "team": session_data.team,
+        "comments": session_data.comments
     }
     
     # Prepare lines with calculated deviations
@@ -349,6 +369,33 @@ def export_csv(db: Session = Depends(get_db)):
         column_letter = get_column_letter(col_idx)
         ws.column_dimensions[column_letter].width = 15
     
+    # Add comments section at the bottom
+    # Group lines by session to add comments per facility
+    sessions_dict = {}
+    for line in lines:
+        session_id = line.session.id
+        if session_id not in sessions_dict:
+            sessions_dict[session_id] = {
+                "facility": line.session.facility.name,
+                "district": line.session.facility.district,
+                "period": line.session.period,
+                "comments": line.session.comments
+            }
+    
+    # Add comments rows after data
+    if sessions_dict:
+        comment_start_row = len(lines) + 3  # 2 rows gap after data
+        ws.cell(row=comment_start_row, column=1, value="COMMENTS").font = Font(bold=True, size=12)
+        comment_row = comment_start_row + 1
+        
+        for session_id, session_info in sessions_dict.items():
+            if session_info["comments"]:
+                ws.cell(row=comment_row, column=1, value=f"{session_info['facility']} ({session_info['district']}) - {session_info['period']}:").font = Font(bold=True)
+                ws.cell(row=comment_row, column=2, value=session_info["comments"])
+                # Merge cells for comment text (columns 2-11)
+                ws.merge_cells(start_row=comment_row, start_column=2, end_row=comment_row, end_column=11)
+                comment_row += 1
+    
     # Save to BytesIO
     output = io.BytesIO()
     wb.save(output)
@@ -428,6 +475,16 @@ def export_session_csv(session_id: int, db: Session = Depends(get_db)):
         column_letter = get_column_letter(col_idx)
         ws.column_dimensions[column_letter].width = 15
 
+    # Add comments section at the bottom if comments exist
+    if session.comments:
+        comment_start_row = len(lines) + 3  # 2 rows gap after data
+        ws.cell(row=comment_start_row, column=1, value="COMMENTS").font = Font(bold=True, size=12)
+        comment_row = comment_start_row + 1
+        ws.cell(row=comment_row, column=1, value=f"{session.facility.name} ({session.facility.district}) - {session.period}:").font = Font(bold=True)
+        ws.cell(row=comment_row, column=2, value=session.comments)
+        # Merge cells for comment text (columns 2-11)
+        ws.merge_cells(start_row=comment_row, start_column=2, end_row=comment_row, end_column=11)
+
     output = io.BytesIO()
     wb.save(output)
     output.seek(0)
@@ -452,16 +509,32 @@ def upload_csv(
         team: Team name to assign the uploaded data to (optional, defaults to 'csv_upload')
     """
     content = file.file.read().decode('utf-8')
-    csv_reader = csv.DictReader(io.StringIO(content))
+    csv_rows = list(csv.DictReader(io.StringIO(content)))
     
-    # Group by facility + district + period to create sessions
+    # First pass: collect comments from COMMENTS rows
+    comments_by_session = {}
+    for row in csv_rows:
+        indicator_name = row.get("indicator_name", "").strip()
+        if indicator_name.upper() == "COMMENTS":
+            facility_name = row.get("facility", "").strip()
+            district = row.get("district", "").strip()
+            period = row.get("period", "").strip()
+            comment_text = row.get("recount_register", "").strip() or None
+            key = (facility_name, district, period)
+            comments_by_session[key] = comment_text
+    
+    # Second pass: process indicator rows
     sessions_dict = {}
-    
-    for row in csv_reader:
+    for row in csv_rows:
         facility_name = row.get("facility", "").strip()
         district = row.get("district", "").strip()
         period = row.get("period", "").strip()
         indicator_code = row.get("indicator_code", "").strip()
+        indicator_name = row.get("indicator_name", "").strip()
+        
+        # Skip COMMENTS rows in second pass
+        if indicator_name.upper() == "COMMENTS":
+            continue
         
         # Find facility
         facility = db.query(Facility).filter(
@@ -475,12 +548,17 @@ def upload_csv(
                 detail=f"Facility '{facility_name}' in district '{district}' not found"
             )
         
-        # Find indicator
-        indicator = get_indicator_by_code(db, indicator_code)
+        # Find indicator - support both indicator_code and indicator_name
+        indicator = None
+        if indicator_code:
+            indicator = get_indicator_by_code(db, indicator_code)
+        elif indicator_name:
+            indicator = db.query(Indicator).filter(Indicator.name == indicator_name).first()
+        
         if not indicator:
             raise HTTPException(
                 status_code=400,
-                detail=f"Indicator code '{indicator_code}' not found"
+                detail=f"Indicator not found. Please provide either 'indicator_code' or 'indicator_name'"
             )
         
         # Group key
@@ -489,10 +567,14 @@ def upload_csv(
         if key not in sessions_dict:
             # Use the team parameter from the form, or from CSV row, or default
             assigned_team = team or row.get("team", "").strip() or "csv_upload"
+            # Get comments from comments_by_session if available
+            comment_key = (facility_name, district, period)
+            session_comments = comments_by_session.get(comment_key)
             sessions_dict[key] = {
                 "facility_id": facility.id,
                 "period": period,
                 "team": assigned_team,
+                "comments": session_comments,
                 "lines": []
             }
         
@@ -522,7 +604,8 @@ def upload_csv(
         session = create_session(db, {
             "facility_id": session_data["facility_id"],
             "period": session_data["period"],
-            "team": session_data["team"]
+            "team": session_data["team"],
+            "comments": session_data.get("comments")
         }, session_data["lines"])
         created_sessions.append(session)
     
