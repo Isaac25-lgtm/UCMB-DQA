@@ -184,6 +184,17 @@ export default function NewDqaSessionPage() {
       <h1 className="text-3xl font-bold mb-6">New DQA Session</h1>
 
       <form onSubmit={handleSubmit} className="space-y-6">
+        <div className="flex justify-start">
+          <button
+            type="button"
+            onClick={handleDownload}
+            disabled={loading || !selectedFacilityId}
+            className="px-6 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 disabled:opacity-50"
+          >
+            Download Template CSV
+          </button>
+        </div>
+
         <div className="bg-white p-6 rounded-lg shadow">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
@@ -374,14 +385,6 @@ export default function NewDqaSessionPage() {
             </span>
           )}
           <div className="flex gap-3">
-            <button
-              type="button"
-              onClick={handleDownload}
-              disabled={loading || !selectedFacilityId}
-              className="px-6 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 disabled:opacity-50"
-            >
-              Download Template CSV
-            </button>
             <button
               type="submit"
               disabled={loading}

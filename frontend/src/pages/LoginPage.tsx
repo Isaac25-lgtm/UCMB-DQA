@@ -24,6 +24,7 @@ export default function LoginPage() {
 
     if (email === MANAGER_EMAIL && password === MANAGER_PASSWORD) {
       localStorage.setItem('managerAuth', 'true')
+      localStorage.setItem('managerLastDashboardTs', String(Date.now()))
       navigate('/dashboard', { replace: true })
     } else {
       setError('Invalid username or password')

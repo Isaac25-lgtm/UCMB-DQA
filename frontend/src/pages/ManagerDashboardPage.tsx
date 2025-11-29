@@ -17,17 +17,40 @@ export default function ManagerDashboardPage() {
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
-    // Simple front-end guard to require manager login
+    // Front-end guard to require UCMB login with 10-minute inactivity timeout
+    const now = Date.now()
     const isLoggedIn = localStorage.getItem('managerAuth') === 'true'
+    const lastActiveRaw = localStorage.getItem('managerLastDashboardTs')
+    const lastActive = lastActiveRaw ? parseInt(lastActiveRaw, 10) : null
+    const tenMinutesMs = 10 * 60 * 1000
+
     if (!isLoggedIn) {
       navigate('/login', { replace: true })
       return
     }
 
+    if (lastActive && now - lastActive > tenMinutesMs) {
+      // Session expired - require sign-in again
+      localStorage.removeItem('managerAuth')
+      localStorage.removeItem('managerLastDashboardTs')
+      navigate('/login', { replace: true })
+      return
+    }
+
+    // Mark this visit as active and keep updating while user stays on the dashboard
+    localStorage.setItem('managerLastDashboardTs', String(now))
+    const interval = window.setInterval(() => {
+      localStorage.setItem('managerLastDashboardTs', String(Date.now()))
+    }, 60000) // update every 1 minute
+
     loadSessions()
     loadStats()
     loadTeams()
-  }, [])
+
+    return () => {
+      window.clearInterval(interval)
+    }
+  }, [navigate])
 
   async function loadTeams() {
     try {
