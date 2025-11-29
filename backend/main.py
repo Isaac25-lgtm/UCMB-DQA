@@ -1,16 +1,13 @@
-from fastapi import FastAPI, Depends, HTTPException, UploadFile, File, Form, status
+from fastapi import FastAPI, Depends, HTTPException, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 import csv
 import io
-from typing import List, Optional
+from typing import List
 from openpyxl import Workbook
 from openpyxl.styles import PatternFill, Font
 from openpyxl.utils import get_column_letter
-from jose import JWTError, jwt
-from datetime import datetime, timedelta
 from openpyxl import Workbook
 from openpyxl.styles import PatternFill, Font
 from openpyxl.utils import get_column_letter
@@ -23,11 +20,7 @@ from schemas import (
     DqaSessionCreate,
     DqaSessionResponse,
     DqaSessionSummary,
-    DqaLineResponse,
-    LoginRequest,
-    LoginResponse,
-    DashboardStats,
-    TeamsResponse
+    DqaLineResponse
 )
 from crud import (
     get_facilities,
@@ -42,52 +35,6 @@ from crud import (
 )
 
 app = FastAPI()
-
-# Security configuration
-SECRET_KEY = "dqa-tool-secret-key-change-in-production"
-ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24  # 24 hours
-
-# Manager credentials
-MANAGER_USERNAME = "jendabalo22@gmail.com"
-MANAGER_PASSWORD = "dataqualityassessment"
-
-security = HTTPBearer(auto_error=False)
-
-def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
-    to_encode = data.copy()
-    if expires_delta:
-        expire = datetime.utcnow() + expires_delta
-    else:
-        expire = datetime.utcnow() + timedelta(minutes=15)
-    to_encode.update({"exp": expire})
-    encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
-    return encoded_jwt
-
-def verify_token(credentials: Optional[HTTPAuthorizationCredentials] = Depends(security)):
-    if credentials is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Not authenticated",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    try:
-        token = credentials.credentials
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        username: str = payload.get("sub")
-        if username is None:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid authentication credentials",
-                headers={"WWW-Authenticate": "Bearer"},
-            )
-        return username
-    except JWTError:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid authentication credentials",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
 
 # CORS middleware
 # Allow both localhost (development) and Render (production) origins
@@ -126,6 +73,13 @@ Base.metadata.create_all(bind=engine)
 def seed_data():
     db = next(get_db())
     try:
+        # Remove deprecated indicators if they exist in an existing database
+        deprecated_codes = ["AN01", "AN02", "AN11", "PN01", "MA22"]
+        if deprecated_codes:
+            db.query(Indicator).filter(Indicator.code.in_(deprecated_codes)).delete(
+                synchronize_session=False
+            )
+
         # Check if facilities exist
         if db.query(Facility).count() == 0:
             facilities_data = [
@@ -187,10 +141,6 @@ def seed_data():
         # Check if indicators exist
         if db.query(Indicator).count() == 0:
             indicators_data = [
-                {"code": "AN01", "name": "ANC 1st contacts/visits (Total)", "data_source": "ANC register"},
-                {"code": "AN02", "name": "ANC 4th contacts/visits for women", "data_source": "ANC register"},
-                {"code": "AN11", "name": "Pregnant women receiving LLINs at 1st ANC visit", "data_source": "ANC register / LLIN section"},
-                {"code": "PN01", "name": "Post-natal attendances at 6 days", "data_source": "PNC register"},
                 {"code": "MA04", "name": "Total deliveries in unit", "data_source": "Maternity/delivery register"},
                 {"code": "MA05a", "name": "Live births <2.5 kg", "data_source": "Maternity register"},
                 {"code": "MA05b", "name": "Fresh stillbirths", "data_source": "Maternity register"},
@@ -201,7 +151,6 @@ def seed_data():
                 {"code": "MA23", "name": "Babies with birth asphyxia", "data_source": "Maternity/newborn register"},
                 {"code": "MA24", "name": "Babies successfully resuscitated", "data_source": "Maternity/newborn register"},
                 {"code": "MA08", "name": "LBW babies <2.5 kg initiated on KMC", "data_source": "KMC register / maternity register"},
-                {"code": "MA22", "name": "HIV-exposed infants given ARV prophylaxis", "data_source": "Maternity register + HEI/HIV register"},
             ]
             for ind_data in indicators_data:
                 indicator = Indicator(**ind_data)
@@ -231,61 +180,45 @@ def calculate_deviations(recount_register, figure_105, figure_dhis2):
     
     return dev_dhis2_vs_reg, dev_105_vs_reg, dev_105_vs_dhis2
 
-@app.get("/")
-def root():
-    """Health check endpoint"""
-    return {"status": "ok", "message": "DQA Tool API is running"}
-
-@app.get("/health")
-def health_check():
-    """Health check endpoint"""
-    return {"status": "healthy"}
-
 @app.get("/facilities", response_model=List[FacilitySchema])
 def list_facilities(db: Session = Depends(get_db)):
     return get_facilities(db)
 
 @app.get("/indicators", response_model=List[IndicatorSchema])
 def list_indicators(db: Session = Depends(get_db)):
-    indicators = get_indicators(db)
-    # Debug logging
-    print(f"[DEBUG] /indicators endpoint called, returning {len(indicators)} indicators")
-    if len(indicators) == 0:
-        print("[WARNING] No indicators found in database!")
-    return indicators
+    return get_indicators(db)
 
 @app.get("/teams")
 def get_teams():
     """Get list of teams with their members"""
     return {
-        "Team A": ["Biostat Gulu District", "Biostat Nwoya", "Biostat Amuru"],
-        "Team B": ["Biostat Pader", "Biostat Omoro", "Biostat Lacor"],
-        "Team C": ["Biostat Gulu City", "Biostat Lamwo", "Biostat Agago"],
-        "Team D": ["Biostat Kitgum", "Biostat Gulu RRH", "Abalo Jenda (UCMB Staff)"]
+        "Team A": [
+            "Biostat Gulu District",
+            "Biostat Pader",
+            "Biostat Gulu City",
+            "Biostat Kitgum",
+        ],
+        "Team B": [
+            "Biostat Nwoya",
+            "Biostat Omoro",
+            "Biostat Lamwo",
+            "Biostat Gulu RRH",
+        ],
+        "Team C": [
+            "Biostat Amuru",
+            "Biostat Lacor",
+            "Biostat Agago",
+            "Abalo Jenda (UCMB Staff)",
+        ],
     }
 
-@app.post("/login", response_model=LoginResponse)
-def login(login_data: LoginRequest):
-    """Login endpoint for manager dashboard"""
-    if login_data.username != MANAGER_USERNAME or login_data.password != MANAGER_PASSWORD:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect username or password",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
-    access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    access_token = create_access_token(
-        data={"sub": login_data.username}, expires_delta=access_token_expires
-    )
-    return {"access_token": access_token, "token_type": "bearer"}
-
 @app.get("/sessions", response_model=List[DqaSessionSummary])
-def list_sessions(db: Session = Depends(get_db), username: str = Depends(verify_token)):
+def list_sessions(db: Session = Depends(get_db)):
     sessions = get_sessions(db)
     return sessions
 
-@app.get("/dashboard/stats", response_model=DashboardStats)
-def get_dashboard_stats_endpoint(db: Session = Depends(get_db), username: str = Depends(verify_token)):
+@app.get("/dashboard/stats")
+def get_dashboard_stats_endpoint(db: Session = Depends(get_db)):
     """Get dashboard statistics for graphs"""
     return get_dashboard_stats(db)
 
@@ -344,7 +277,7 @@ def create_dqa_session(session_data: DqaSessionCreate, db: Session = Depends(get
     return session
 
 @app.get("/export")
-def export_csv(db: Session = Depends(get_db), username: str = Depends(verify_token)):
+def export_csv(db: Session = Depends(get_db)):
     """Export all DQA lines as Excel with color-coded percentage deviations"""
     lines = db.query(DqaLine).join(DqaSession).join(Facility).join(Indicator).all()
     
@@ -431,8 +364,7 @@ def export_csv(db: Session = Depends(get_db), username: str = Depends(verify_tok
 def upload_csv(
     file: UploadFile = File(...),
     team: str = Form(None),
-    db: Session = Depends(get_db),
-    username: str = Depends(verify_token)
+    db: Session = Depends(get_db)
 ):
     """Upload CSV file and create session(s)
     

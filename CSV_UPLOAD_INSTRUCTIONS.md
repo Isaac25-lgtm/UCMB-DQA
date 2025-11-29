@@ -11,7 +11,7 @@ Your CSV file must have these columns (in this order):
 1. **facility** - Exact facility name (must match database)
 2. **district** - Exact district name (must match database)
 3. **period** - Period/date string
-4. **indicator_code** - Indicator code (e.g., AN01, MA04, etc.)
+4. **indicator_code** - Indicator code (e.g., MA04, MA05a, etc.)
 5. **recount_register** - Recount from register (number, can be empty)
 6. **figure_105** - Figure 105 (number, can be empty)
 7. **figure_dhis2** - Figure DHIS2 (number, can be empty)
@@ -24,9 +24,9 @@ Your CSV file must have these columns (in this order):
 
 ```csv
 facility,district,period,indicator_code,recount_register,figure_105,figure_dhis2
-Agoro Health Centre III,Lamwo District,January 15, 2025,AN01,100,95,110
-Agoro Health Centre III,Lamwo District,January 15, 2025,AN02,80,75,85
-Akworo Health Centre III,Lamwo District,January 15, 2025,AN01,120,115,125
+Agoro Health Centre III,Lamwo District,January 15, 2025,MA04,100,95,110
+Agoro Health Centre III,Lamwo District,January 15, 2025,MA05a,80,75,85
+Akworo Health Centre III,Lamwo District,January 15, 2025,MA12,120,115,125
 ```
 
 ### What Happens Automatically
@@ -47,6 +47,6 @@ Akworo Health Centre III,Lamwo District,January 15, 2025,AN01,120,115,125
 
 - Empty values are allowed (leave blank for missing data)
 - Facility and district names must match exactly (case-sensitive)
-- Indicator codes must match exactly (e.g., "AN01" not "an01")
+- Indicator codes must match exactly (e.g., "MA04" not "ma04")
 - Multiple rows for the same facility+district+period will be grouped into one session
 

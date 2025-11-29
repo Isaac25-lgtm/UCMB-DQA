@@ -31,7 +31,12 @@ export default function NewDqaSessionPage() {
   const [selectedFacilityId, setSelectedFacilityId] = useState<number | null>(null)
   const [period] = useState(() => {
     const now = new Date()
-    return now.toLocaleDateString('en-US', { year: 'numeric', month: 'long' })
+    // Use full current date (day, month, year)
+    return now.toLocaleDateString('en-GB', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+    })
   })
   const [selectedTeam, setSelectedTeam] = useState<string>('')
   const [lines, setLines] = useState<Record<number, {
@@ -40,59 +45,21 @@ export default function NewDqaSessionPage() {
     figure_dhis2?: number | null
   }>>({})
   const [loading, setLoading] = useState(false)
-  const [dataLoading, setDataLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     async function loadData() {
       try {
-        setDataLoading(true)
-        setError(null)
-        
-        // Load data with individual error handling
-        let facilitiesData: Facility[] = []
-        let indicatorsData: Indicator[] = []
-        let teamsData: TeamsResponse = {}
-        
-        try {
-          facilitiesData = await fetchFacilities()
-        } catch (err) {
-          console.error('Failed to load facilities:', err)
-        }
-        
-        try {
-          indicatorsData = await fetchIndicators()
-        } catch (err) {
-          console.error('Failed to load indicators:', err)
-          throw new Error(`Cannot load indicators. ${err instanceof Error ? err.message : 'Please ensure the backend is running at http://localhost:8000'}`)
-        }
-        
-        try {
-          teamsData = await fetchTeams()
-        } catch (err) {
-          console.error('Failed to load teams:', err)
-        }
-        
+        const [facilitiesData, indicatorsData, teamsData] = await Promise.all([
+          fetchFacilities(),
+          fetchIndicators(),
+          fetchTeams(),
+        ])
         setFacilities(facilitiesData)
         setIndicators(indicatorsData)
         setTeams(teamsData)
-        
-        // Log for debugging
-        console.log('Loaded data:', {
-          facilities: facilitiesData.length,
-          indicators: indicatorsData.length,
-          teams: Object.keys(teamsData).length
-        })
-        
-        if (indicatorsData.length === 0) {
-          setError('No indicators found in database. Please restart the backend server to seed data.')
-        }
       } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : 'Failed to load data'
-        setError(errorMessage)
-        console.error('Error loading data:', err)
-      } finally {
-        setDataLoading(false)
+        setError(err instanceof Error ? err.message : 'Failed to load data')
       }
     }
     loadData()
@@ -196,18 +163,11 @@ export default function NewDqaSessionPage() {
     }
   }
 
-  if (error && !facilities.length && !indicators.length) {
+  if (error && !facilities.length) {
     return (
       <div className="max-w-4xl mx-auto">
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
-          <p className="font-bold">Connection Error</p>
-          <p>{error}</p>
-          <button
-            onClick={() => window.location.reload()}
-            className="mt-2 px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700"
-          >
-            Retry
-          </button>
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
+          {error}
         </div>
       </div>
     )
@@ -262,12 +222,12 @@ export default function NewDqaSessionPage() {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Period
+                Current Date
               </label>
               <div className="w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-md text-gray-700">
                 {period}
               </div>
-              <p className="mt-1 text-xs text-gray-500">Current date (automatically set)</p>
+              <p className="mt-1 text-xs text-gray-500">Automatically set to today</p>
             </div>
 
             <div>
@@ -334,23 +294,7 @@ export default function NewDqaSessionPage() {
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {dataLoading ? (
-                  <tr>
-                    <td colSpan={9} className="px-4 py-8 text-center text-gray-500">
-                      <div className="flex items-center justify-center">
-                        <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600 mr-2"></div>
-                        Loading indicators...
-                      </div>
-                    </td>
-                  </tr>
-                ) : indicators.length === 0 ? (
-                  <tr>
-                    <td colSpan={9} className="px-4 py-8 text-center text-gray-500">
-                      {error || 'No indicators found. Please check your connection and refresh the page.'}
-                    </td>
-                  </tr>
-                ) : (
-                  indicators.map((indicator) => {
+                {indicators.map((indicator) => {
                   const line = lines[indicator.id] || {}
                   const dev_dhis2_vs_reg = calculateDeviation(line.recount_register, line.figure_dhis2)
                   const dev_105_vs_reg = calculateDeviation(line.recount_register, line.figure_105)
@@ -405,8 +349,7 @@ export default function NewDqaSessionPage() {
                       </td>
                     </tr>
                   )
-                  })
-                )}
+                })}
               </tbody>
             </table>
           </div>
