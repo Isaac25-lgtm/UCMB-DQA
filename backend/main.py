@@ -214,8 +214,16 @@ def seed_data():
     db = next(get_db())
     try:
         # Remove deprecated indicators if they exist in an existing database
-        deprecated_codes = ["AN01", "AN02", "AN11", "PN01", "MA22"]
+        deprecated_codes = ["AN01", "AN02", "AN11", "PN01", "MA22", "MA05b", "MA05c", "MA12"]
         if deprecated_codes:
+            # First, delete associated DqaLine records
+            deprecated_indicators = db.query(Indicator).filter(Indicator.code.in_(deprecated_codes)).all()
+            if deprecated_indicators:
+                indicator_ids = [ind.id for ind in deprecated_indicators]
+                db.query(DqaLine).filter(DqaLine.indicator_id.in_(indicator_ids)).delete(
+                    synchronize_session=False
+                )
+            # Then delete the indicators
             db.query(Indicator).filter(Indicator.code.in_(deprecated_codes)).delete(
                 synchronize_session=False
             )
@@ -278,25 +286,18 @@ def seed_data():
                 facility = Facility(**fac_data)
                 db.add(facility)
         
-        # Seed indicators - check each one individually and add if it doesn't exist
-        indicators_data = [
-            {"code": "MA04", "name": "Total deliveries in unit", "data_source": "Maternity/delivery register"},
-            {"code": "MA05a", "name": "Live births <2.5 kg", "data_source": "Maternity register"},
-            {"code": "MA05b", "name": "Fresh stillbirths", "data_source": "Maternity register"},
-            {"code": "MA05c", "name": "Macerated stillbirths", "data_source": "Maternity register"},
-            {"code": "MA12", "name": "Newborn deaths 0–7 days", "data_source": "Maternity/newborn register"},
-            {"code": "MA13", "name": "Maternal deaths", "data_source": "Maternity register + death register"},
-            {"code": "MA14", "name": "Mothers who initiated breastfeeding within 1st hour after delivery", "data_source": "Maternity register"},
-            {"code": "MA23", "name": "Babies with birth asphyxia", "data_source": "Maternity/newborn register"},
-            {"code": "MA24", "name": "Babies successfully resuscitated", "data_source": "Maternity/newborn register"},
-            {"code": "MA08", "name": "LBW babies <2.5 kg initiated on KMC", "data_source": "KMC register / maternity register"},
-            {"code": "105-AN01b", "name": "ANC 1st contacts/ visits for women - No. in 1st Trimester", "data_source": "ANC register"},
-            {"code": "105-PN01", "name": "Integrated Antenatal Register and Post Natal Attendances - Timing 6Dys - Integrated Postnatal Register", "data_source": "Integrated Postnatal Register"},
-        ]
-        for ind_data in indicators_data:
-            # Check if indicator with this code already exists
-            existing = db.query(Indicator).filter(Indicator.code == ind_data["code"]).first()
-            if not existing:
+        # Check if indicators exist
+        if db.query(Indicator).count() == 0:
+            indicators_data = [
+                {"code": "MA04", "name": "Total deliveries in unit", "data_source": "Maternity/delivery register"},
+                {"code": "MA05a", "name": "Live births <2.5 kg", "data_source": "Maternity register"},
+                {"code": "MA13", "name": "Maternal deaths", "data_source": "Maternity register + death register"},
+                {"code": "MA14", "name": "Mothers who initiated breastfeeding within 1st hour after delivery", "data_source": "Maternity register"},
+                {"code": "MA23", "name": "Babies with birth asphyxia", "data_source": "Maternity/newborn register"},
+                {"code": "MA24", "name": "Babies successfully resuscitated", "data_source": "Maternity/newborn register"},
+                {"code": "MA08", "name": "LBW babies <2.5 kg initiated on KMC", "data_source": "KMC register / maternity register"},
+            ]
+            for ind_data in indicators_data:
                 indicator = Indicator(**ind_data)
                 db.add(indicator)
         
