@@ -296,6 +296,8 @@ def seed_data():
                 {"code": "MA23", "name": "Babies with birth asphyxia", "data_source": "Maternity/newborn register"},
                 {"code": "MA24", "name": "Babies successfully resuscitated", "data_source": "Maternity/newborn register"},
                 {"code": "MA08", "name": "LBW babies <2.5 kg initiated on KMC", "data_source": "KMC register / maternity register"},
+                {"code": "105-AN01b", "name": "ANC 1st contacts/ visits for women - No. in 1st Trimester", "data_source": "ANC register"},
+                {"code": "105-PN01", "name": "Integrated Antenatal Register and Post Natal Attendances - Timing 6Dys - Integrated Postnatal Register", "data_source": "Integrated Postnatal Register"},
             ]
             for ind_data in indicators_data:
                 indicator = Indicator(**ind_data)
