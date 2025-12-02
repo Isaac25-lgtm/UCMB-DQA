@@ -70,7 +70,7 @@ The frontend will be available at `http://localhost:5173`
 
 The SQLite database (`dqa.db`) is automatically created on first run. Seed data includes:
 - 8 facilities across 4 districts (Lamwo, Nwoya, Gulu, Pader)
-- MNH indicators focused on maternity and newborn outcomes (e.g., MA04, MA05a, MA05b, MA05c, MA12, MA13, MA14, MA23, MA24, MA08).
+- MNH indicators focused on maternity and newborn outcomes (e.g., MA04, MA05a, MA13, MA14, MA23, MA24, MA08).
 
 ## API Endpoints
 
